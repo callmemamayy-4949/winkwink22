@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireAdminSession } from "@/lib/auth/admin";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { fetchPostViaOembed, fetchPostPreview, type FetchedPost } from "@/lib/utils/oembed";
 import { buildImportRow } from "@/lib/utils/link-to-row";
@@ -162,6 +163,8 @@ export async function updatePost(
   id: string,
   patch: PostPatch
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminSession();
+
   if (!id || typeof id !== "string") return { ok: false, error: "Missing id" };
 
   let updates: Record<string, unknown>;
@@ -212,6 +215,7 @@ export interface ManualReviewInput {
  * callers must treat failure as normal and fall back to manual paste.
  */
 export async function fetchPostText(url: string, platform: Platform): Promise<FetchedPost> {
+  await requireAdminSession();
   return fetchPostViaOembed(url, platform);
 }
 
@@ -233,6 +237,8 @@ const MAX_PREVIEW_LINKS = 40;
 
 /** Resolve a batch of pasted links into preview rows + duplicate status. */
 export async function previewLinks(rawUrls: string[]): Promise<LinkPreview[]> {
+  await requireAdminSession();
+
   const urls = rawUrls.map((u) => u.trim()).filter(Boolean).slice(0, MAX_PREVIEW_LINKS);
   if (urls.length === 0) return [];
 
@@ -290,6 +296,8 @@ export async function previewLinks(rawUrls: string[]): Promise<LinkPreview[]> {
 export async function checkOriginalUrlExists(
   url: string
 ): Promise<{ exists: boolean; error?: string }> {
+  await requireAdminSession();
+
   const original_url = url?.trim();
   if (!original_url) return { exists: false, error: "ไม่มีลิงก์" };
 
@@ -307,6 +315,8 @@ export async function checkOriginalUrlExists(
 export async function createManualReview(
   input: ManualReviewInput
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminSession();
+
   const original_url = input.original_url?.trim();
   const username = input.username?.trim();
 
@@ -437,6 +447,8 @@ function toNewPostRow(row: ImportRow) {
 const MAX_IMPORT_ROWS = 200;
 
 export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
+  await requireAdminSession();
+
   const summary: ImportSummary = { total: rows.length, inserted: 0, duplicate: 0, failed: 0, errors: [] };
   if (rows.length === 0) return summary;
   if (rows.length > MAX_IMPORT_ROWS) {

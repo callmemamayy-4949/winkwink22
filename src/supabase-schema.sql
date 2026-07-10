@@ -82,6 +82,24 @@ create trigger posts_updated_at
 
 
 -- =============================================================
+-- 1.1 ADMIN_USERS
+-- =============================================================
+
+create table if not exists admin_users (
+  id            uuid primary key default gen_random_uuid(),
+  username      text not null unique,
+  password_hash text not null,
+  is_active     boolean not null default true,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+create trigger admin_users_updated_at
+  before update on admin_users
+  for each row execute procedure update_updated_at();
+
+
+-- =============================================================
 -- 2. POST_MEDIA
 -- =============================================================
 
@@ -136,6 +154,7 @@ create index if not exists idx_post_media_post_id on post_media (post_id, sort_o
 alter table posts       enable row level security;
 alter table post_media  enable row level security;
 alter table scrape_jobs enable row level security;
+alter table admin_users enable row level security;
 
 -- Public: anyone can read approved posts and their media
 create policy "Public can read approved posts"
@@ -154,6 +173,8 @@ create policy "Public can read media of approved posts"
 
 -- Admin: use service_role key on the server side to bypass RLS.
 -- If you need admin actions from the browser, add an "is_admin" check here.
+-- admin_users intentionally has no public policies; server-side service_role
+-- code is the only path used by the app.
 
 
 -- =============================================================
