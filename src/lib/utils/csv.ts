@@ -104,6 +104,13 @@ export function csvTableToImportRows(table: string[][]): ImportRow[] {
   const [header, ...dataRows] = table;
   const colIndex = new Map(header.map((h, i) => [h.trim(), i]));
   const get = (row: string[], col: string) => row[colIndex.get(col) ?? -1];
+  const getFirst = (row: string[], cols: string[]) => {
+    for (const col of cols) {
+      const value = get(row, col);
+      if (value !== undefined) return value;
+    }
+    return undefined;
+  };
 
   return dataRows
     .filter((row) => row.some((cell) => cell.trim() !== ""))
@@ -114,7 +121,7 @@ export function csvTableToImportRows(table: string[][]): ImportRow[] {
       username: (get(row, "username") ?? "").trim(),
       display_name: toNullableString(get(row, "display_name")),
       post_text: toNullableString(get(row, "post_text")),
-      media_urls: toArray(get(row, "media_urls")),
+      media_urls: toArray(getFirst(row, ["media_urls", "media_url"])),
       thumbnail_url: toNullableString(get(row, "thumbnail_url")),
       preview_image_url: toNullableString(get(row, "preview_image_url")),
       posted_at: toNullableString(get(row, "posted_at")),

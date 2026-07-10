@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/auth/admin";
 import { getAdminSupabase } from "@/lib/supabase/admin";
-import { fetchPostViaOembed, fetchPostPreview, type FetchedPost } from "@/lib/utils/oembed";
-import { buildImportRow } from "@/lib/utils/link-to-row";
+import { fetchPostViaOembed, type FetchedPost } from "@/lib/utils/oembed";
+import { enrichImportRowFromUrl } from "@/lib/utils/enrich-import-row";
 import { parsePostUrl } from "@/lib/utils/parse-review";
 import { slugify } from "@/lib/utils/slugify";
 import type {
@@ -255,13 +255,18 @@ export async function previewLinks(rawUrls: string[]): Promise<LinkPreview[]> {
         results[i] = { input, ok: false, error: "ไม่ใช่ลิงก์ X/TikTok", existsInDb: false, videoUrl: null, row: null };
         continue;
       }
-      const fetched = await fetchPostPreview(parsed.original_url, parsed.platform);
+      const enriched = await enrichImportRowFromUrl({
+        original_url: input,
+        platform: parsed.platform,
+        username: "",
+      });
       results[i] = {
         input,
-        ok: true,
+        ok: !!enriched.row,
+        error: enriched.row ? undefined : enriched.message,
         existsInDb: false, // filled in below
         videoUrl: parsed.video_url,
-        row: buildImportRow(parsed, fetched),
+        row: enriched.row,
       };
     }
   }
@@ -396,8 +401,16 @@ export interface ImportSummary {
   total: number;
   inserted: number;
   duplicate: number;
+  scrapeSuccess: number;
+  scrapeFailed: number;
   failed: number;
   errors: { row: number; message: string }[];
+  rowLogs: {
+    row: number;
+    original_url: string;
+    status: "inserted" | "duplicate" | "scrape_success" | "scrape_failed" | "error";
+    message: string;
+  }[];
 }
 
 function validateImportRow(row: ImportRow): string | null {
@@ -449,7 +462,16 @@ const MAX_IMPORT_ROWS = 200;
 export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
   await requireAdminSession();
 
-  const summary: ImportSummary = { total: rows.length, inserted: 0, duplicate: 0, failed: 0, errors: [] };
+  const summary: ImportSummary = {
+    total: rows.length,
+    inserted: 0,
+    duplicate: 0,
+    scrapeSuccess: 0,
+    scrapeFailed: 0,
+    failed: 0,
+    errors: [],
+    rowLogs: [],
+  };
   if (rows.length === 0) return summary;
   if (rows.length > MAX_IMPORT_ROWS) {
     throw new Error(`ไฟล์มีจำนวนรายการมากเกินไป (สูงสุด ${MAX_IMPORT_ROWS} รายการต่อครั้ง)`);
@@ -461,18 +483,51 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
   const candidates: { index: number; row: ImportRow }[] = [];
 
   rows.forEach((row, index) => {
-    const err = validateImportRow(row);
-    if (err) {
+    if (!row || typeof row !== "object") {
       summary.failed++;
-      summary.errors.push({ row: index + 1, message: err });
+      summary.errors.push({ row: index + 1, message: "แถวข้อมูลไม่ถูกต้อง" });
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: "",
+        status: "error",
+        message: "แถวข้อมูลไม่ถูกต้อง",
+      });
       return;
     }
-    if (seenInBatch.has(row.original_url)) {
+    if (!row.original_url || typeof row.original_url !== "string") {
+      summary.failed++;
+      summary.errors.push({ row: index + 1, message: "ไม่มี original_url" });
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: "",
+        status: "error",
+        message: "ไม่มี original_url",
+      });
+      return;
+    }
+    const parsed = parsePostUrl(row.original_url);
+    const normalizedRow = parsed
+      ? {
+          ...row,
+          original_url: parsed.original_url,
+          platform: row.platform || parsed.platform,
+          tweet_id: row.tweet_id || parsed.tweet_id,
+          username: row.username || (parsed.username ? `@${parsed.username}` : row.username),
+        }
+      : row;
+
+    if (seenInBatch.has(normalizedRow.original_url)) {
       summary.duplicate++;
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: normalizedRow.original_url,
+        status: "duplicate",
+        message: "original_url ซ้ำในไฟล์เดียวกัน",
+      });
       return;
     }
-    seenInBatch.add(row.original_url);
-    candidates.push({ index, row });
+    seenInBatch.add(normalizedRow.original_url);
+    candidates.push({ index, row: normalizedRow });
   });
 
   if (candidates.length === 0) return summary;
@@ -491,20 +546,86 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
   for (const { index, row } of candidates) {
     if (existingUrls.has(row.original_url)) {
       summary.duplicate++;
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: row.original_url,
+        status: "duplicate",
+        message: "มี original_url นี้อยู่ใน Supabase แล้ว",
+      });
       continue;
     }
+
+    const enriched = await enrichImportRowFromUrl(row);
+    if (!enriched.row) {
+      summary.failed++;
+      summary.errors.push({ row: index + 1, message: enriched.message });
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: row.original_url,
+        status: "error",
+        message: enriched.message,
+      });
+      continue;
+    }
+
+    if (enriched.scrapeAttempted) {
+      if (enriched.scrapeOk) {
+        summary.scrapeSuccess++;
+        summary.rowLogs.push({
+          row: index + 1,
+          original_url: enriched.row.original_url,
+          status: "scrape_success",
+          message: enriched.message,
+        });
+      } else {
+        summary.scrapeFailed++;
+        summary.rowLogs.push({
+          row: index + 1,
+          original_url: enriched.row.original_url,
+          status: "scrape_failed",
+          message: enriched.message,
+        });
+      }
+    }
+
+    const err = validateImportRow(enriched.row);
+    if (err) {
+      summary.failed++;
+      summary.errors.push({ row: index + 1, message: err });
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: enriched.row.original_url,
+        status: "error",
+        message: err,
+      });
+      continue;
+    }
+
     try {
       await insertPostWithMedia(
         supabase,
-        toNewPostRow(row),
-        row.preview_image_url ?? null,
-        row.media_urls ?? [],
-        row.thumbnail_url ?? null
+        toNewPostRow(enriched.row),
+        enriched.row.preview_image_url ?? null,
+        enriched.row.media_urls ?? [],
+        enriched.row.thumbnail_url ?? null
       );
       summary.inserted++;
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: enriched.row.original_url,
+        status: "inserted",
+        message: "บันทึกเป็น pending แล้ว",
+      });
     } catch (e) {
       summary.failed++;
-      summary.errors.push({ row: index + 1, message: e instanceof Error ? e.message : "Unknown error" });
+      const message = e instanceof Error ? e.message : "Unknown error";
+      summary.errors.push({ row: index + 1, message });
+      summary.rowLogs.push({
+        row: index + 1,
+        original_url: enriched.row.original_url,
+        status: "error",
+        message,
+      });
     }
   }
 

@@ -15,6 +15,10 @@ function str(v: unknown): string | null {
 function arr(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 }
+function mediaArr(v: unknown): string[] {
+  if (typeof v === "string" && v.trim() !== "") return [v.trim()];
+  return arr(v);
+}
 function num(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
@@ -33,7 +37,7 @@ function normalizeJsonRow(raw: unknown): ImportRow | null {
     username: str(r.username) ?? "",
     display_name: str(r.display_name),
     post_text: str(r.post_text),
-    media_urls: arr(r.media_urls),
+    media_urls: arr(r.media_urls).length > 0 ? arr(r.media_urls) : mediaArr(r.media_url),
     thumbnail_url: str(r.thumbnail_url),
     preview_image_url: str(r.preview_image_url),
     posted_at: str(r.posted_at),
@@ -168,6 +172,8 @@ export default function AdminImportPage() {
               { label: "ทั้งหมดในไฟล์", value: summary.total, cls: "bg-surface-container text-text-strong" },
               { label: "เพิ่มใหม่", value: summary.inserted, cls: "bg-pastel-mint text-pastel-mint-text" },
               { label: "ซ้ำ (ข้าม)", value: summary.duplicate, cls: "bg-pastel-purple text-pastel-purple-text" },
+              { label: "Scrape สำเร็จ", value: summary.scrapeSuccess, cls: "bg-pastel-mint text-pastel-mint-text" },
+              { label: "Scrape ไม่สำเร็จ", value: summary.scrapeFailed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
               { label: "ไม่สำเร็จ", value: summary.failed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
             ].map((s) => (
               <div key={s.label} className={`rounded-control p-3 text-center ${s.cls}`}>
@@ -184,6 +190,20 @@ export default function AdminImportPage() {
                 {summary.errors.map((e) => (
                   <li key={e.row}>
                     แถวที่ {e.row}: {e.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {summary.rowLogs.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold text-label">Log รายแถว</p>
+              <ul className="max-h-64 space-y-1 overflow-y-auto rounded-control bg-surface-cream p-3 text-xs text-text">
+                {summary.rowLogs.map((log, index) => (
+                  <li key={`${log.row}-${log.status}-${index}`} className="break-all">
+                    แถวที่ {log.row}: <span className="font-semibold">{log.status}</span>
+                    {log.original_url ? ` · ${log.original_url}` : ""} · {log.message}
                   </li>
                 ))}
               </ul>
