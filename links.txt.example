@@ -1,0 +1,12 @@
+# วางลิงก์โพสต์ X / TikTok — บรรทัดละ 1 ลิงก์
+# บรรทัดที่ขึ้นต้นด้วย # จะถูกข้าม (ใช้เขียนโน้ตได้)
+#
+# วิธีใช้:
+#   1. ก๊อปไฟล์นี้เป็น links.txt        →  Copy-Item links.txt.example links.txt
+#   2. วางลิงก์จริงแทนตัวอย่างข้างล่าง
+#   3. รัน  npm run links:csv
+#   4. ได้ไฟล์ใน exports/ แล้วเอาไปอัปโหลดที่ /admin/import
+
+https://x.com/daixyjira/status/2051310039475089888
+https://x.com/ss_bz/status/2064338467035939027
+# https://www.tiktok.com/@someuser/video/7412345678901234567
