@@ -1,25 +1,89 @@
-import Link from "next/link";
+"use client";
 
-export function SiteHeader() {
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+
+type RawSearchParams = Record<string, string | string[] | undefined>;
+
+function toUrlSearchParams(searchParams: RawSearchParams) {
+  const params = new URLSearchParams();
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => params.append(key, item));
+    } else if (value) {
+      params.set(key, value);
+    }
+  });
+  return params;
+}
+
+export function SiteHeader({
+  searchParams = {},
+}: {
+  searchParams?: RawSearchParams;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentQ = typeof searchParams.q === "string" ? searchParams.q : "";
+  const [searchValue, setSearchValue] = useState(currentQ);
+  const [prevQ, setPrevQ] = useState(currentQ);
+
+  if (currentQ !== prevQ) {
+    setPrevQ(currentQ);
+    setSearchValue(currentQ);
+  }
+
+  function updateSearch(value: string) {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const params = toUrlSearchParams(searchParams);
+      if (value.trim()) {
+        params.set("q", value.trim());
+      } else {
+        params.delete("q");
+      }
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }, 350);
+  }
+
   return (
-    <header className="sticky top-0 z-30 border-b border-white/40 bg-surface/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/reviews" className="flex items-center gap-2 text-primary">
-          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-primary text-white shadow-glow">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden>
-              <path d="M12 21s-6.7-4.35-9.3-8.1C.8 10.1 1.4 6.6 4.3 5.1c2.3-1.2 4.9-.4 6.4 1.4l1.3 1.6 1.3-1.6c1.5-1.8 4.1-2.6 6.4-1.4 2.9 1.5 3.5 5 1.6 7.8C18.7 16.65 12 21 12 21z" />
-            </svg>
-          </span>
-          <span className="font-display text-base font-bold text-gradient-primary sm:text-lg">
-            Winkwink
-          </span>
+    <header className="sticky top-0 z-30 border-b border-white/55 bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-6">
+        <Link href="/reviews" className="flex shrink-0 items-center gap-2 text-primary" aria-label="Winkwink Review Center">
+          <Image
+            src="/winkwink-logo.png"
+            alt="Winkwink"
+            width={96}
+            height={96}
+            preload
+            className="h-14 w-auto object-contain drop-shadow-sm sm:h-16"
+          />
         </Link>
-        <Link
-          href="/admin"
-          className="rounded-full border border-white/60 bg-white/70 px-4 py-1.5 text-sm font-semibold text-primary shadow-sm backdrop-blur transition-transform hover:scale-[1.03] active:scale-95"
-        >
-          Admin
-        </Link>
+
+        <div className="relative min-w-0 flex-1">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-label"
+            aria-hidden
+          >
+            <circle cx={11} cy={11} r={7} />
+            <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            value={searchValue}
+            onChange={(e) => updateSearch(e.target.value)}
+            placeholder="ค้นหารีวิว รุ่นอุปกรณ์ หรือสถานที่"
+            className="w-full rounded-control border border-outline/20 bg-surface-container-low px-4 py-3 pr-11 text-sm font-medium text-text-strong outline-none transition focus:border-primary/30 focus:bg-white focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
       </div>
     </header>
   );

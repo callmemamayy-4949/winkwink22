@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { MultiSelectDropdown } from "@/components/reviews/MultiSelectDropdown";
 import type { FilterFacets } from "@/lib/data/reviews";
@@ -25,28 +24,14 @@ const SORT_OPTIONS: SortOption[] = [
 export function ReviewsControls({
   facets,
   filters,
-  basePath,
   lockModel = false,
 }: {
   facets: FilterFacets;
   filters: ReviewFilters;
-  basePath: string;
   lockModel?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [searchValue, setSearchValue] = useState(filters.q ?? "");
-  const [copyLabel, setCopyLabel] = useState("คัดลอกลิงก์หน้านี้");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Keep the input in sync when filters.q changes externally (e.g. clearing
-  // filters or back/forward nav) — the render-time "adjust state on prop change"
-  // pattern, so we don't setState inside an effect.
-  const [prevQ, setPrevQ] = useState(filters.q);
-  if (filters.q !== prevQ) {
-    setPrevQ(filters.q);
-    setSearchValue(filters.q ?? "");
-  }
 
   function navigate(next: ReviewFilters) {
     const qs = filtersToSearchString(next);
@@ -55,20 +40,6 @@ export function ReviewsControls({
 
   function updateFilter<K extends keyof ReviewFilters>(key: K, value: ReviewFilters[K]) {
     navigate({ ...filters, [key]: value });
-  }
-
-  function handleSearchChange(value: string) {
-    setSearchValue(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      updateFilter("q", value || undefined);
-    }, 350);
-  }
-
-  async function handleCopyLink() {
-    await navigator.clipboard.writeText(window.location.href);
-    setCopyLabel("คัดลอกลิงก์แล้ว!");
-    setTimeout(() => setCopyLabel("คัดลอกลิงก์หน้านี้"), 2000);
   }
 
   const activeChips: { key: keyof ReviewFilters; value: string; label: string }[] = [];
@@ -98,37 +69,6 @@ export function ReviewsControls({
 
   return (
     <div className="rounded-card border border-white/60 bg-white/70 p-4 shadow-card backdrop-blur-xl sm:p-6">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70"
-          >
-            <circle cx={11} cy={11} r={7} />
-            <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-          </svg>
-          <input
-            value={searchValue}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="ค้นหารีวิว, รุ่นมือถือ, หรือเลนส์..."
-            className="w-full rounded-full border border-white/70 bg-surface-cream/90 py-3 pl-11 pr-4 text-sm shadow-inner outline-none transition-shadow focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleCopyLink}
-          className="font-display flex items-center justify-center gap-1.5 rounded-full bg-gradient-primary px-5 py-3 text-sm font-semibold text-on-primary shadow-glow transition-transform hover:scale-[1.03] active:scale-95"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden>
-            <path d="M16 1a4 4 0 0 0-4 4v2H8a4 4 0 0 0 0 8h2v-2H8a2 2 0 0 1 0-4h4v6a4 4 0 0 0 8 0v-2h-2v2a2 2 0 0 1-4 0V5a2 2 0 0 1 4 0v2h2V5a4 4 0 0 0-4-4Z" />
-          </svg>
-          {copyLabel}
-        </button>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
         {!lockModel && (
           <MultiSelectDropdown
@@ -200,7 +140,7 @@ export function ReviewsControls({
           {filters.q && (
             <button
               type="button"
-              onClick={() => handleSearchChange("")}
+              onClick={() => updateFilter("q", undefined)}
               className="flex items-center gap-1 rounded-full bg-primary-container/70 px-3 py-1.5 text-xs font-medium text-on-primary-container transition-transform hover:scale-[1.03] active:scale-95"
             >
               &ldquo;{filters.q}&rdquo;
@@ -229,7 +169,7 @@ export function ReviewsControls({
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/50 pt-4">
-        <span className="mr-1 text-sm text-label">เรียงตาม:</span>
+        <span className="mr-1 text-sm text-label">จัดเรียงตาม</span>
         {SORT_OPTIONS.map((option) => {
           const active = (filters.sort ?? "newest") === option;
           return (

@@ -20,10 +20,8 @@ export async function ReviewsPageContent({
   ]);
 
   const model = phoneSlug ? facets.models.find((m) => m.slug === phoneSlug) : undefined;
-  const title = model ? `รีวิว ${model.label}` : "Winkwink Review Gallery";
-  const subtitle = model
-    ? `คลังรีวิว ${model.label} จาก X และ TikTok ของร้าน Winkwink Rent`
-    : "คลังรีวิวจาก X และ TikTok ของร้าน Winkwink Rent — ค้นหา กรอง แล้วส่งลิงก์ให้ลูกค้าได้ทันที";
+  const title = model ? `รีวิว ${model.label}` : "Winkwink Review Center";
+  const subtitle = "ค้นหารีวิวตามรุ่นอุปกรณ์ เลนส์ สถานที่ และปีที่ใช้งาน";
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 pb-16 sm:px-6">
@@ -32,13 +30,12 @@ export async function ReviewsPageContent({
       <ReviewsControls
         facets={facets}
         filters={filters}
-        basePath={phoneSlug ? `/reviews/${phoneSlug}` : "/reviews"}
         lockModel={Boolean(phoneSlug)}
       />
 
       <div className="mb-4 mt-6 flex items-center justify-between">
         <p className="font-display text-sm font-medium text-text-strong">
-          แสดง <span className="text-primary">{reviews.length}</span> รีวิว
+          พบรีวิวทั้งหมด <span className="text-primary">{reviews.length}</span> รายการ
         </p>
       </div>
 

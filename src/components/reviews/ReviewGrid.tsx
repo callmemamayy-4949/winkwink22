@@ -6,8 +6,7 @@ export function ReviewGrid({ reviews }: { reviews: ReviewWithMedia[] }) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-card border border-white/60 bg-white/60 py-16 text-center shadow-card backdrop-blur">
         <span className="mb-1 text-4xl" aria-hidden>🌸</span>
-        <p className="font-display text-title-md font-semibold text-text-strong">ไม่พบรีวิวที่ตรงกับตัวกรอง</p>
-        <p className="text-sm text-label">ลองปรับตัวกรองหรือคำค้นหาใหม่อีกครั้ง</p>
+        <p className="font-display text-title-md font-semibold text-text-strong">ไม่พบรีวิวที่ตรงกับเงื่อนไข</p>
       </div>
     );
   }

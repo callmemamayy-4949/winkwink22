@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState } from "react";
 
 /** Falls back to a brand-toned pastel placeholder when the source media
@@ -22,7 +24,6 @@ export function ReviewImage({ src, alt }: { src: string | null; alt: string }) {
     );
   }
 
-  // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
       src={src}

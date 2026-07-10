@@ -135,23 +135,23 @@ export interface ReviewFilters {
 }
 
 export const SORT_LABELS_TH: Record<SortOption, string> = {
-  newest: "ล่าสุดไปเก่า",
-  oldest: "เก่าไปล่าสุด",
-  most_retweets: "รีทวิตมากสุด",
-  most_likes: "ไลก์มากสุด",
-  most_views: "วิวมากสุด",
+  newest: "ล่าสุด",
+  oldest: "เก่าสุด",
+  most_retweets: "รีโพสต์สูงสุด",
+  most_likes: "ถูกใจสูงสุด",
+  most_views: "ยอดเข้าชมสูงสุด",
 };
 
 export const LENS_LABELS_TH: Record<LensStatus, string> = {
-  yes: "มีเลนส์",
-  no: "ไม่มีเลนส์",
-  unknown: "ไม่ระบุ",
+  yes: "พร้อมเลนส์เสริม",
+  no: "ไม่ใช้เลนส์เสริม",
+  unknown: "ไม่ระบุข้อมูล",
 };
 
 export const SOURCE_LABELS_TH: Record<ReviewSourceType, string> = {
-  customer: "รีวิวจากลูกค้า",
+  customer: "รีวิวจากผู้ใช้งาน",
   shop: "รีวิวจากร้าน",
-  unknown: "ไม่ระบุ",
+  unknown: "ไม่ระบุข้อมูล",
 };
 
 export const PLATFORM_LABELS: Record<Platform, string> = {

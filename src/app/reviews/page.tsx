@@ -10,7 +10,7 @@ export default async function ReviewsPage({
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader searchParams={resolvedSearchParams} />
       <main className="flex-1">
         <ReviewsPageContent searchParams={resolvedSearchParams} />
       </main>

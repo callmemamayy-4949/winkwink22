@@ -12,7 +12,7 @@ export default async function ReviewsByModelPage({
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader searchParams={resolvedSearchParams} />
       <main className="flex-1">
         <ReviewsPageContent searchParams={resolvedSearchParams} phoneSlug={phone_slug} />
       </main>

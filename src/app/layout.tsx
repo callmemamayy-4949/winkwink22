@@ -20,8 +20,8 @@ const mali = Mali({
 });
 
 export const metadata: Metadata = {
-  title: "Winkwink Review Gallery",
-  description: "คลังรีวิวจาก X และ TikTok ของร้าน Winkwink Rent",
+  title: "Winkwink Review Center",
+  description: "ค้นหารีวิวตามรุ่นอุปกรณ์ เลนส์ สถานที่ และปีที่ใช้งาน",
 };
 
 export default function RootLayout({
