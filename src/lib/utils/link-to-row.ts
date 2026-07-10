@@ -32,6 +32,7 @@ export function buildImportRow(parsed: ParsedPostUrl, fetched: FetchedPost): Imp
     phone_model: p.phone_model,
     phone_slug: p.phone_slug,
     lens_status: p.lens_status,
+    suggested_model: p.suggested_model,
     place: null,
     place_slug: null,
     video_quality: p.video_quality,

@@ -6,7 +6,7 @@ import { importReviews, type ImportSummary } from "@/lib/actions/reviews";
 import { parseCsv, csvTableToImportRows } from "@/lib/utils/csv";
 import type { ImportRow } from "@/types/review";
 
-const LENS_VALUES = new Set(["yes", "no", "unknown"]);
+const LENS_VALUES = new Set(["with_lens", "without_lens", "unknown"]);
 const SOURCE_VALUES = new Set(["customer", "shop", "unknown"]);
 
 function str(v: unknown): string | null {
@@ -37,6 +37,7 @@ function normalizeJsonRow(raw: unknown): ImportRow | null {
     username: str(r.username) ?? "",
     display_name: str(r.display_name),
     post_text: str(r.post_text),
+    caption: str(r.caption),
     media_urls: arr(r.media_urls).length > 0 ? arr(r.media_urls) : mediaArr(r.media_url),
     thumbnail_url: str(r.thumbnail_url),
     preview_image_url: str(r.preview_image_url),
@@ -47,6 +48,7 @@ function normalizeJsonRow(raw: unknown): ImportRow | null {
     phone_model: str(r.phone_model),
     phone_slug: str(r.phone_slug),
     lens_status: (LENS_VALUES.has(r.lens_status as string) ? r.lens_status : "unknown") as ImportRow["lens_status"],
+    suggested_model: str(r.suggested_model) ?? str(r.candidate_model),
     place: str(r.place),
     place_slug: str(r.place_slug),
     video_quality: str(r.video_quality),

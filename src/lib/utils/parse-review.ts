@@ -1,4 +1,4 @@
-import { slugify } from "@/lib/utils/slugify";
+import { normalizePhoneModel } from "@/lib/utils/phone-models";
 import type { LensStatus, Platform, ReviewSourceType } from "@/types/review";
 
 /**
@@ -168,33 +168,14 @@ export function parseCount(text: string | null | undefined): number | null {
   return isNaN(n) ? null : n;
 }
 
-/** Heuristic phone/lens extraction — expand this list for better coverage. */
-const PHONE_PATTERNS: { brand: string; patterns: RegExp[] }[] = [
-  { brand: "Oppo",    patterns: [/oppo\s+find\s+x(\d+)\s+(pro)?/i, /oppo\s+reno\s+(\d+)\s*(pro)?/i, /oppo\s+([\w\s]+)/i] },
-  { brand: "Apple",   patterns: [/iphone\s+(\d+)\s*(pro\s*(max)?|plus|mini)?/i] },
-  { brand: "Samsung", patterns: [/samsung\s+galaxy\s+(s\d+\s*(ultra|plus)?|a\d+)/i, /galaxy\s+(s\d+\s*(ultra|plus)?)/i] },
-  { brand: "Xiaomi",  patterns: [/xiaomi\s+(\d+\s*(ultra|pro)?)/i] },
-  { brand: "Vivo",    patterns: [/vivo\s+(x\d+\s*(pro)?)/i] },
-  { brand: "Google",  patterns: [/pixel\s+(\d+\s*(pro\s*(fold|xl)?|a)?)/i] },
-];
-
 export function extractPhoneInfo(text: string): { brand: string | null; model: string | null; slug: string | null } {
-  for (const { brand, patterns } of PHONE_PATTERNS) {
-    for (const re of patterns) {
-      const m = text.match(re);
-      if (m) {
-        const model = m[0].trim();
-        return { brand, model, slug: slugify(`${brand}-${model}`) };
-      }
-    }
-  }
-  return { brand: null, model: null, slug: null };
+  const normalized = normalizePhoneModel({ texts: [text] });
+  return { brand: normalized.phone_brand, model: normalized.phone_model, slug: normalized.phone_slug };
 }
 
 export function extractLensStatus(text: string): LensStatus {
-  if (/เลนส์เสริม|พร้อมเลนส์|with\s+lens|\+\s*lens/i.test(text)) return "yes";
-  if (/ไม่(มี|เอา|ใช้)เลนส์|no\s+lens|without\s+lens/i.test(text)) return "no";
-  if (/เลนส์|lens/i.test(text)) return "yes"; // mention without negation = probably yes
+  if (/ไม่\s*(?:ต่อ|ติด|มี|เอา|ใช้)\s*เลนส์|no\s*lens|without\s*lens/i.test(text)) return "without_lens";
+  if (/เลนส์เสริม|พร้อม\s*เลนส์|ชุด\s*เลนส์|\+\s*(?:lens|เลนส์)|with\s*lens|\blens\b|เลนส์/i.test(text)) return "with_lens";
   return "unknown";
 }
 
@@ -247,6 +228,7 @@ export interface ParsedReviewFields {
   phone_model: string | null;
   phone_slug: string | null;
   lens_status: LensStatus;
+  suggested_model: string | null;
   video_quality: string | null;
   year: number | null;
   hashtags: string[];
@@ -260,8 +242,8 @@ export interface ParsedReviewFields {
  * it's too noisy to guess reliably, so the admin fills it in.
  */
 export function parseReviewText(text: string, postedAt: string | null = null): ParsedReviewFields {
-  const { brand, model, slug } = extractPhoneInfo(text);
-  const lens_status = extractLensStatus(text);
+  const normalized = normalizePhoneModel({ texts: [text] });
+  const { phone_brand: brand, phone_model: model, phone_slug: slug, lens_status, suggested_model } = normalized;
   const video_quality = extractVideoQuality(text);
   const year = extractYear(text, postedAt);
   const hashtags = extractHashtags(text);
@@ -270,7 +252,7 @@ export function parseReviewText(text: string, postedAt: string | null = null): P
   let summary_th: string | null = null;
   if (brand || model) {
     const name = [brand, model].filter(Boolean).join(" ");
-    summary_th = `รีวิว${name}${lens_status === "yes" ? " พร้อมเลนส์เสริม" : ""}`;
+    summary_th = `รีวิว${name}${lens_status === "with_lens" ? " พร้อมเลนส์เสริม" : ""}`;
   }
 
   const confidence = buildConfidence({
@@ -282,5 +264,5 @@ export function parseReviewText(text: string, postedAt: string | null = null): P
     posted_at: postedAt,
   });
 
-  return { phone_brand: brand, phone_model: model, phone_slug: slug, lens_status, video_quality, year, hashtags, app_used, summary_th, confidence };
+  return { phone_brand: brand, phone_model: model, phone_slug: slug, lens_status, suggested_model, video_quality, year, hashtags, app_used, summary_th, confidence };
 }

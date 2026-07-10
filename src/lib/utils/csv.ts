@@ -5,9 +5,9 @@ import type { ImportRow } from "@/types/review";
  * CSV import in /admin/import, so the two stay in sync automatically.
  */
 export const CSV_COLUMNS = [
-  "original_url", "platform", "tweet_id", "username", "display_name", "post_text",
+  "original_url", "platform", "tweet_id", "username", "display_name", "post_text", "caption",
   "media_urls", "thumbnail_url", "preview_image_url", "posted_at", "source_keyword", "hashtags",
-  "phone_brand", "phone_model", "phone_slug", "lens_status", "place", "place_slug",
+  "phone_brand", "phone_model", "phone_slug", "lens_status", "suggested_model", "place", "place_slug",
   "video_quality", "year", "app_used", "summary_th", "confidence",
   "retweet_count", "like_count", "reply_count", "view_count",
   "review_source_type", "status", "scraped_at",
@@ -121,6 +121,7 @@ export function csvTableToImportRows(table: string[][]): ImportRow[] {
       username: (get(row, "username") ?? "").trim(),
       display_name: toNullableString(get(row, "display_name")),
       post_text: toNullableString(get(row, "post_text")),
+      caption: toNullableString(get(row, "caption")),
       media_urls: toArray(getFirst(row, ["media_urls", "media_url"])),
       thumbnail_url: toNullableString(get(row, "thumbnail_url")),
       preview_image_url: toNullableString(get(row, "preview_image_url")),
@@ -131,6 +132,7 @@ export function csvTableToImportRows(table: string[][]): ImportRow[] {
       phone_model: toNullableString(get(row, "phone_model")),
       phone_slug: toNullableString(get(row, "phone_slug")),
       lens_status: (toNullableString(get(row, "lens_status")) ?? "unknown") as ImportRow["lens_status"],
+      suggested_model: toNullableString(getFirst(row, ["suggested_model", "candidate_model"])),
       place: toNullableString(get(row, "place")),
       place_slug: toNullableString(get(row, "place_slug")),
       video_quality: toNullableString(get(row, "video_quality")),

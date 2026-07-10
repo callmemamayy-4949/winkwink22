@@ -6,6 +6,7 @@ import { requireAdminSession } from "@/lib/auth/admin";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { fetchPostViaOembed, type FetchedPost } from "@/lib/utils/oembed";
 import { enrichImportRowFromUrl } from "@/lib/utils/enrich-import-row";
+import { normalizePhoneModel } from "@/lib/utils/phone-models";
 import { parsePostUrl } from "@/lib/utils/parse-review";
 import { slugify } from "@/lib/utils/slugify";
 import type {
@@ -26,7 +27,7 @@ import type {
  * use.
  */
 
-const LENS_VALUES: LensStatus[] = ["yes", "no", "unknown"];
+const LENS_VALUES: LensStatus[] = ["with_lens", "without_lens", "unknown"];
 const SOURCE_VALUES: ReviewSourceType[] = ["customer", "shop", "unknown"];
 const PLATFORM_VALUES: Platform[] = ["x", "tiktok"];
 const STATUS_VALUES: PostStatus[] = ["pending", "approved", "hidden", "duplicate"];
@@ -113,6 +114,7 @@ export interface PostPatch {
   phone_model?: string | null;
   phone_slug?: string | null;
   lens_status?: LensStatus;
+  suggested_model?: string | null;
   place?: string | null;
   place_slug?: string | null;
   video_quality?: string | null;
@@ -128,9 +130,22 @@ export interface PostPatch {
 function sanitizePatch(patch: PostPatch): Record<string, unknown> {
   const out: Record<string, unknown> = {};
 
-  if ("phone_brand" in patch) out.phone_brand = patch.phone_brand || null;
-  if ("phone_model" in patch) out.phone_model = patch.phone_model || null;
-  if ("phone_slug" in patch) out.phone_slug = patch.phone_slug || null;
+  const hasPhonePatch = "phone_brand" in patch || "phone_model" in patch || "phone_slug" in patch;
+  if (hasPhonePatch) {
+    const phone = normalizePhoneModel({
+      phoneBrand: patch.phone_brand,
+      phoneModel: patch.phone_model,
+      phoneSlug: patch.phone_slug,
+      texts: [patch.summary_th],
+    });
+    out.phone_brand = phone.phone_brand;
+    out.phone_model = phone.phone_model;
+    out.phone_slug = phone.phone_slug;
+    out.suggested_model = patch.suggested_model || phone.suggested_model || null;
+    if (phone.lens_status !== "unknown") out.lens_status = phone.lens_status;
+  } else if ("suggested_model" in patch) {
+    out.suggested_model = patch.suggested_model || null;
+  }
   if ("place" in patch) out.place = patch.place || null;
   if ("place_slug" in patch) out.place_slug = patch.place_slug || null;
   if ("video_quality" in patch) out.video_quality = patch.video_quality || null;
@@ -141,7 +156,13 @@ function sanitizePatch(patch: PostPatch): Record<string, unknown> {
 
   if (patch.lens_status !== undefined) {
     if (!LENS_VALUES.includes(patch.lens_status)) throw new Error("lens_status ไม่ถูกต้อง");
-    out.lens_status = patch.lens_status;
+    const normalizedModel = typeof out.phone_model === "string" ? out.phone_model : null;
+    out.lens_status =
+      normalizedModel?.includes("+ Lens")
+        ? "with_lens"
+        : patch.lens_status === "with_lens" && hasPhonePatch
+          ? out.lens_status ?? "unknown"
+          : patch.lens_status;
   }
   if (patch.platform !== undefined) {
     if (!PLATFORM_VALUES.includes(patch.platform)) throw new Error("platform ไม่ถูกต้อง");
@@ -346,10 +367,16 @@ export async function createManualReview(
   const hashtags = input.hashtags
     ? input.hashtags.split(",").map((h) => h.trim()).filter(Boolean)
     : [];
-  const phone_slug =
-    input.phone_brand || input.phone_model
-      ? slugify(`${input.phone_brand ?? ""}-${input.phone_model ?? ""}`)
-      : null;
+  const phone = normalizePhoneModel({
+    phoneBrand: input.phone_brand,
+    phoneModel: input.phone_model,
+    texts: [input.review_text, input.summary_th],
+  });
+  const lensStatus = phone.phone_model?.includes("+ Lens")
+    ? "with_lens"
+    : input.lens_status === "without_lens"
+      ? "without_lens"
+      : phone.lens_status;
 
   const newPost = {
     original_url,
@@ -362,10 +389,11 @@ export async function createManualReview(
     scraped_at: new Date().toISOString(),
     source_keyword: "manual",
     hashtags,
-    phone_brand: input.phone_brand || null,
-    phone_model: input.phone_model || null,
-    phone_slug,
-    lens_status: LENS_VALUES.includes(input.lens_status) ? input.lens_status : "unknown",
+    phone_brand: phone.phone_brand,
+    phone_model: phone.phone_model,
+    phone_slug: phone.phone_slug,
+    lens_status: LENS_VALUES.includes(lensStatus) ? lensStatus : "unknown",
+    suggested_model: phone.suggested_model,
     place: input.place || null,
     place_slug: input.place ? slugify(input.place) : null,
     video_quality: input.video_quality || null,
@@ -437,6 +465,7 @@ function toNewPostRow(row: ImportRow) {
     phone_model: row.phone_model ?? null,
     phone_slug: row.phone_slug ?? null,
     lens_status: LENS_VALUES.includes(row.lens_status as LensStatus) ? row.lens_status : "unknown",
+    suggested_model: row.suggested_model ?? null,
     place: row.place ?? null,
     place_slug: row.place_slug ?? null,
     video_quality: row.video_quality ?? null,

@@ -1,6 +1,7 @@
 import type { ImportRow } from "@/types/review";
 import { buildImportRow } from "@/lib/utils/link-to-row";
 import { fetchPostPreview } from "@/lib/utils/oembed";
+import { normalizeImportRowPhoneFields } from "@/lib/utils/phone-models";
 import { parsePostUrl } from "@/lib/utils/parse-review";
 
 export interface EnrichedImportRowResult {
@@ -42,6 +43,7 @@ function mergeImportRows(base: ImportRow, fallback: ImportRow): ImportRow {
     phone_model: base.phone_model || fallback.phone_model,
     phone_slug: base.phone_slug || fallback.phone_slug,
     lens_status: base.lens_status && base.lens_status !== "unknown" ? base.lens_status : fallback.lens_status,
+    suggested_model: base.suggested_model || fallback.suggested_model,
     place: base.place || fallback.place,
     place_slug: base.place_slug || fallback.place_slug,
     video_quality: base.video_quality || fallback.video_quality,
@@ -59,6 +61,7 @@ function mergeImportRows(base: ImportRow, fallback: ImportRow): ImportRow {
         : fallback.review_source_type,
     status: base.status || fallback.status,
     scraped_at: base.scraped_at || fallback.scraped_at,
+    caption: base.caption || fallback.caption,
   };
 }
 
@@ -81,7 +84,7 @@ export async function enrichImportRowFromUrl(row: ImportRow): Promise<EnrichedIm
   if (hasAnyMedia(row)) {
     const parsedOnly = buildImportRow(parsed, { ok: false, reason: "media provided" });
     return {
-      row: mergeImportRows({ ...row, original_url: parsed.original_url }, parsedOnly),
+      row: normalizeImportRowPhoneFields(mergeImportRows({ ...row, original_url: parsed.original_url }, parsedOnly)),
       parsed: true,
       scrapeAttempted: false,
       scrapeOk: false,
@@ -91,7 +94,7 @@ export async function enrichImportRowFromUrl(row: ImportRow): Promise<EnrichedIm
 
   const fetched = await fetchPostPreview(parsed.original_url, parsed.platform);
   return {
-    row: mergeImportRows({ ...row, original_url: parsed.original_url }, buildImportRow(parsed, fetched)),
+    row: normalizeImportRowPhoneFields(mergeImportRows({ ...row, original_url: parsed.original_url }, buildImportRow(parsed, fetched))),
     parsed: true,
     scrapeAttempted: true,
     scrapeOk: fetched.ok,

@@ -36,7 +36,8 @@ create table if not exists posts (
   phone_model           text,
   phone_slug            text,                           -- url-safe slug, e.g. oppo-find-x9-pro
   lens_status           text not null default 'unknown'
-                          check (lens_status in ('yes', 'no', 'unknown')),
+                          check (lens_status in ('with_lens', 'without_lens', 'unknown')),
+  suggested_model       text,                           -- possible future model, admin must approve before canonical use
   place                 text,
   place_slug            text,
   video_quality         text,                           -- 4K | 1080p | 720p | ...

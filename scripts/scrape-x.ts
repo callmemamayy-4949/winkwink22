@@ -35,12 +35,8 @@ import * as path from "path";
 import { rowsToCsv, type CsvColumn } from "../src/lib/utils/csv";
 import {
   buildConfidence,
-  extractHashtags,
-  extractLensStatus,
-  extractPhoneInfo,
-  extractVideoQuality,
-  extractYear,
   inferReviewSourceType,
+  parseReviewText,
   parseCount,
   parseTweetId,
 } from "../src/lib/utils/parse-review";
@@ -184,11 +180,7 @@ async function scrapeTweet(tweetEl: ElementHandle<Element>): Promise<ImportRow |
 
     const { mediaUrls, thumbnailUrl } = await extractMedia(tweetEl);
 
-    const { brand, model, slug } = extractPhoneInfo(text);
-    const hashtags   = extractHashtags(text);
-    const lensStatus = extractLensStatus(text);
-    const quality    = extractVideoQuality(text);
-    const year       = extractYear(text, dateTime);
+    const parsedText = parseReviewText(text, dateTime);
     const sourceType = inferReviewSourceType(username);
 
     const row: ImportRow = {
@@ -202,17 +194,18 @@ async function scrapeTweet(tweetEl: ElementHandle<Element>): Promise<ImportRow |
       thumbnail_url:       thumbnailUrl,
       posted_at:           dateTime,
       source_keyword:      KEYWORD,
-      hashtags,
-      phone_brand:         brand,
-      phone_model:         model,
-      phone_slug:          slug,
-      lens_status:         lensStatus,
+      hashtags:            parsedText.hashtags,
+      phone_brand:         parsedText.phone_brand,
+      phone_model:         parsedText.phone_model,
+      phone_slug:          parsedText.phone_slug,
+      lens_status:         parsedText.lens_status,
+      suggested_model:     parsedText.suggested_model,
       place:               null,
       place_slug:          null,
-      video_quality:       quality,
-      year,
-      app_used:            null,
-      summary_th:          null,
+      video_quality:       parsedText.video_quality,
+      year:                parsedText.year,
+      app_used:            parsedText.app_used,
+      summary_th:          parsedText.summary_th,
       review_source_type:  sourceType,
       retweet_count:       rtCount,
       like_count:          likeCount,
@@ -237,6 +230,7 @@ function toCsvRow(row: ImportRow): Record<CsvColumn, string> {
     username:            row.username,
     display_name:        row.display_name ?? "",
     post_text:           row.post_text ?? "",
+    caption:             row.caption ?? "",
     media_urls:          (row.media_urls ?? []).join("|"),
     thumbnail_url:       row.thumbnail_url ?? "",
     preview_image_url:   row.preview_image_url ?? row.thumbnail_url ?? "",
@@ -247,6 +241,7 @@ function toCsvRow(row: ImportRow): Record<CsvColumn, string> {
     phone_model:         row.phone_model ?? "",
     phone_slug:          row.phone_slug ?? "",
     lens_status:         row.lens_status ?? "unknown",
+    suggested_model:     row.suggested_model ?? "",
     place:               row.place ?? "",
     place_slug:          row.place_slug ?? "",
     video_quality:       row.video_quality ?? "",

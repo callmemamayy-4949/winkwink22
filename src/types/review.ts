@@ -1,6 +1,6 @@
 export type Platform = "x" | "tiktok";
 
-export type LensStatus = "yes" | "no" | "unknown";
+export type LensStatus = "with_lens" | "without_lens" | "unknown";
 
 export type ReviewSourceType = "customer" | "shop" | "unknown";
 
@@ -32,6 +32,7 @@ export interface Post {
   phone_model: string | null;
   phone_slug: string | null;
   lens_status: LensStatus;
+  suggested_model: string | null;
   place: string | null;
   place_slug: string | null;
   video_quality: string | null;
@@ -92,6 +93,7 @@ export interface ImportRow {
   username: string;
   display_name?: string | null;
   post_text?: string | null;
+  caption?: string | null;
   media_urls?: string[];
   thumbnail_url?: string | null;
   /** Real, directly-renderable cover image for the review card. */
@@ -103,6 +105,7 @@ export interface ImportRow {
   phone_model?: string | null;
   phone_slug?: string | null;
   lens_status?: LensStatus;
+  suggested_model?: string | null;
   place?: string | null;
   place_slug?: string | null;
   video_quality?: string | null;
@@ -143,8 +146,8 @@ export const SORT_LABELS_TH: Record<SortOption, string> = {
 };
 
 export const LENS_LABELS_TH: Record<LensStatus, string> = {
-  yes: "พร้อมเลนส์เสริม",
-  no: "ไม่ใช้เลนส์เสริม",
+  with_lens: "พร้อมเลนส์เสริม",
+  without_lens: "ไม่ใช้เลนส์เสริม",
   unknown: "ไม่ระบุข้อมูล",
 };
 
