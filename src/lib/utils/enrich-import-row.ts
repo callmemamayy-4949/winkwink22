@@ -94,7 +94,7 @@ export async function enrichImportRowFromUrl(row: ImportRow): Promise<EnrichedIm
       parsed: true,
       scrapeAttempted: false,
       scrapeOk: false,
-      message: "ใช้ media จากไฟล์ ไม่ scrape ซ้ำ",
+      message: "ใช้ media จากไฟล์ ไม่ต้องดึงข้อมูลซ้ำ",
     };
   }
 
@@ -104,6 +104,6 @@ export async function enrichImportRowFromUrl(row: ImportRow): Promise<EnrichedIm
     parsed: true,
     scrapeAttempted: true,
     scrapeOk: fetched.ok,
-    message: fetched.ok ? "scrape สำเร็จ" : `scrape ไม่สำเร็จ: ${fetched.reason ?? "unknown"}`,
+    message: fetched.ok ? "ดึงข้อมูลสำเร็จ" : `ดึงข้อมูลไม่สำเร็จ: ${fetched.reason ?? "unknown"}`,
   };
 }

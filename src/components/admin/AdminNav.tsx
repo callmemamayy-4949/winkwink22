@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: "/admin/pending", label: "รอตรวจสอบ", exact: false },
   { href: "/admin/import", label: "นำเข้าไฟล์", exact: false },
   { href: "/admin/manual-add", label: "เพิ่มรีวิว", exact: false },
-  { href: "/admin/scrape", label: "Scrape X", exact: false },
+  { href: "/admin/scrape", label: "Winkwink Admin", exact: false },
 ];
 
 export function AdminNav() {

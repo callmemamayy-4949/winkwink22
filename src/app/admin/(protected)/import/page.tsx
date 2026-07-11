@@ -26,6 +26,21 @@ function num(v: unknown): number | null {
   return null;
 }
 
+function displayLogStatus(status: ImportSummary["rowLogs"][number]["status"]) {
+  if (status === "scrape_success") return "ดึงข้อมูลสำเร็จ";
+  if (status === "scrape_failed") return "ดึงข้อมูลไม่สำเร็จ";
+  if (status === "inserted") return "เพิ่มแล้ว";
+  if (status === "duplicate") return "ซ้ำ";
+  return "ไม่สำเร็จ";
+}
+
+function displayFetchStatus(status: NonNullable<ImportSummary["rowLogs"][number]["scrape_status"]>) {
+  if (status === "success") return "สำเร็จ";
+  if (status === "failed") return "ไม่สำเร็จ";
+  if (status === "skipped") return "ข้าม";
+  return "ไม่ได้ดึง";
+}
+
 /** Loosely-typed JSON → ImportRow, defensive against a hand-edited export file. */
 function normalizeJsonRow(raw: unknown): ImportRow | null {
   if (!raw || typeof raw !== "object") return null;
@@ -148,7 +163,7 @@ export default function AdminImportPage() {
           <span className="text-sm font-semibold text-text-strong">
             {fileName ?? "คลิกเพื่อเลือกไฟล์ .json หรือ .csv"}
           </span>
-          <span className="text-xs text-label">ไฟล์ที่ export จาก scripts/scrape-x.ts</span>
+          <span className="text-xs text-label">รองรับไฟล์รีวิว CSV/JSON ที่มี original_url</span>
         </label>
         <input
           ref={fileInputRef}
@@ -180,8 +195,8 @@ export default function AdminImportPage() {
               { label: "ทั้งหมดในไฟล์", value: summary.total, cls: "bg-surface-container text-text-strong" },
               { label: "เพิ่มใหม่", value: summary.inserted, cls: "bg-pastel-mint text-pastel-mint-text" },
               { label: "ซ้ำ (ข้าม)", value: summary.duplicate, cls: "bg-pastel-purple text-pastel-purple-text" },
-              { label: "Scrape สำเร็จ", value: summary.scrapeSuccess, cls: "bg-pastel-mint text-pastel-mint-text" },
-              { label: "Scrape ไม่สำเร็จ", value: summary.scrapeFailed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
+              { label: "ดึงข้อมูลสำเร็จ", value: summary.scrapeSuccess, cls: "bg-pastel-mint text-pastel-mint-text" },
+              { label: "ดึงข้อมูลไม่สำเร็จ", value: summary.scrapeFailed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
               { label: "รุ่นที่ระบบสงสัย", value: summary.suggestedModelCount, cls: "bg-pastel-purple text-pastel-purple-text" },
               { label: "ไม่เจอรุ่น", value: summary.unmatchedModelCount, cls: "bg-pastel-yellow text-pastel-yellow-text" },
               { label: "ไม่สำเร็จ", value: summary.failed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
@@ -212,8 +227,8 @@ export default function AdminImportPage() {
               <ul className="max-h-64 space-y-1 overflow-y-auto rounded-control bg-surface-cream p-3 text-xs text-text">
                 {summary.rowLogs.map((log, index) => (
                   <li key={`${log.row}-${log.status}-${index}`} className="break-all">
-                    แถวที่ {log.row}: <span className="font-semibold">{log.status}</span>
-                    {log.scrape_status ? ` · scrape:${log.scrape_status}` : ""}
+                    แถวที่ {log.row}: <span className="font-semibold">{displayLogStatus(log.status)}</span>
+                    {log.scrape_status ? ` · ดึงข้อมูล:${displayFetchStatus(log.scrape_status)}` : ""}
                     {log.insert_status ? ` · insert:${log.insert_status}` : ""}
                     {log.model_match_status ? ` · model:${log.model_match_status}` : ""}
                     {log.original_url ? ` · ${log.original_url}` : ""} · {log.message}
