@@ -110,7 +110,10 @@ export async function getPublicReviews(
   if (phoneSlug) query = query.eq("phone_slug", phoneSlug);
 
   const { data, error } = await query;
-  if (error) throw new Error(`Failed to load reviews: ${error.message}`);
+  if (error) {
+    console.error("Failed to load reviews", error);
+    return [];
+  }
 
   const reviews = ((data ?? []) as PostRow[]).map(toReviewWithMedia);
   const filtered = reviews.filter((r) => matchesFilters(r, filters));
@@ -126,7 +129,10 @@ export async function getAdminReviews(
   if (filters.status) query = query.eq("status", filters.status);
 
   const { data, error } = await query;
-  if (error) throw new Error(`Failed to load admin reviews: ${error.message}`);
+  if (error) {
+    console.error("Failed to load admin reviews", error);
+    return [];
+  }
 
   const reviews = ((data ?? []) as PostRow[]).map(toReviewWithMedia);
   const filtered = reviews.filter((r) => matchesFilters(r, filters));
@@ -141,7 +147,10 @@ export async function getReviewById(id: string): Promise<ReviewWithMedia | undef
     .eq("id", id)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to load review ${id}: ${error.message}`);
+  if (error) {
+    console.error(`Failed to load review ${id}`, error);
+    return undefined;
+  }
   return data ? toReviewWithMedia(data as PostRow) : undefined;
 }
 
@@ -158,7 +167,17 @@ export interface FilterFacets {
 export async function getFilterFacets(): Promise<FilterFacets> {
   const supabase = getPublicSupabase();
   const { data, error } = await supabase.from("posts").select("*").eq("status", "approved");
-  if (error) throw new Error(`Failed to load filter facets: ${error.message}`);
+  if (error) {
+    console.error("Failed to load filter facets", error);
+    return {
+      brands: [],
+      models: [],
+      places: [],
+      qualities: [],
+      hashtags: [],
+      years: [],
+    };
+  }
 
   const approved = (data ?? []) as Post[];
 

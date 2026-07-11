@@ -26,6 +26,9 @@ function PlatformIcon({ platform }: { platform: "x" | "tiktok" }) {
 export function ReviewCard({ review }: { review: ReviewWithMedia }) {
   const cover = review.media[0];
   const summary = review.summary_th || review.post_text;
+  const lensLabel = LENS_LABELS_TH[review.lens_status] ?? LENS_LABELS_TH.unknown;
+  const sourceLabel = SOURCE_LABELS_TH[review.review_source_type] ?? SOURCE_LABELS_TH.unknown;
+  const platformLabel = PLATFORM_LABELS[review.platform] ?? review.platform;
   const stats = [
     { label: "RT", value: review.retweet_count },
     { label: "Like", value: review.like_count },
@@ -41,7 +44,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
 
         <div className="absolute left-2.5 top-2.5">
           <Badge tone={review.review_source_type === "shop" ? "mint" : "primary"}>
-            {SOURCE_LABELS_TH[review.review_source_type]}
+            {sourceLabel}
           </Badge>
         </div>
 
@@ -73,7 +76,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
         </div>
 
         <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-label">
-          <span>{LENS_LABELS_TH[review.lens_status]}</span>
+          <span>{lensLabel}</span>
           {review.year && (
             <>
               <span aria-hidden>•</span>
@@ -83,7 +86,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
           <span aria-hidden>•</span>
           <span className="inline-flex items-center gap-1">
             <PlatformIcon platform={review.platform} />
-            {PLATFORM_LABELS[review.platform]}
+            {platformLabel}
           </span>
         </p>
 
