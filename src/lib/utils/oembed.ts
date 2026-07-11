@@ -13,11 +13,16 @@ export interface FetchedPost {
   ok: boolean;
   post_text?: string;
   display_name?: string;
+  posted_at?: string;
   thumbnail_url?: string;
   /** A real, directly-renderable preview image (photo, or a video's poster). */
   preview_image_url?: string;
   /** All real image URLs found on the post (photos / video posters). */
   media_urls?: string[];
+  retweet_count?: number | null;
+  like_count?: number | null;
+  reply_count?: number | null;
+  view_count?: number | null;
   reason?: string;
 }
 
@@ -40,6 +45,79 @@ function stripTweetHtml(html: string): string {
   return decodeEntities(pMatch ? pMatch[1] : "");
 }
 
+function parseCompactCount(text: string | null | undefined): number | null {
+  if (!text) return null;
+  const clean = text.replace(/,/g, "").trim();
+  const m = clean.match(/^(\d+(?:\.\d+)?)\s*([KMB])?/i);
+  if (!m) return null;
+  const value = Number(m[1]);
+  if (!Number.isFinite(value)) return null;
+  const suffix = (m[2] ?? "").toUpperCase();
+  if (suffix === "K") return Math.round(value * 1_000);
+  if (suffix === "M") return Math.round(value * 1_000_000);
+  if (suffix === "B") return Math.round(value * 1_000_000_000);
+  return Math.round(value);
+}
+
+function normalizeIsoDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+const MONTHS: Record<string, string> = {
+  jan: "01",
+  january: "01",
+  feb: "02",
+  february: "02",
+  mar: "03",
+  march: "03",
+  apr: "04",
+  april: "04",
+  may: "05",
+  jun: "06",
+  june: "06",
+  jul: "07",
+  july: "07",
+  aug: "08",
+  august: "08",
+  sep: "09",
+  sept: "09",
+  september: "09",
+  oct: "10",
+  october: "10",
+  nov: "11",
+  november: "11",
+  dec: "12",
+  december: "12",
+};
+
+function parseDisplayedTweetDate(text: string): string | null {
+  const m = text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*[·•]\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/i);
+  if (!m) return null;
+  let hour = Number(m[1]);
+  const minute = m[2];
+  const meridiem = m[3].toUpperCase();
+  const month = MONTHS[m[4].toLowerCase()];
+  const day = m[5].padStart(2, "0");
+  const year = m[6];
+  if (!month || !Number.isFinite(hour)) return null;
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return `${year}-${month}-${day}T${String(hour).padStart(2, "0")}:${minute}:00`;
+}
+
+function parseViews(text: string): number | null {
+  const m = text.match(/([\d,.]+(?:\.\d+)?\s*[KMB]?)\s+Views?/i);
+  return m ? parseCompactCount(m[1]) : null;
+}
+
+function firstNumberFromUnknown(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") return parseCompactCount(value);
+  return null;
+}
+
 /**
  * Twitter/X syndication endpoint — the same public JSON the official embed
  * widget (and Vercel's react-tweet) calls to render a tweet. No login, no
@@ -55,7 +133,16 @@ function syndicationToken(id: string): string {
 
 async function fetchXSyndication(
   tweetId: string
-): Promise<{ text: string; name: string; media_urls: string[] } | null> {
+): Promise<{
+  text: string;
+  name: string;
+  media_urls: string[];
+  posted_at: string | null;
+  retweet_count: number | null;
+  like_count: number | null;
+  reply_count: number | null;
+  view_count: number | null;
+} | null> {
   try {
     const endpoint =
       `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}` +
@@ -69,9 +156,15 @@ async function fetchXSyndication(
 
     const data = (await res.json()) as {
       text?: string;
+      created_at?: string;
       user?: { name?: string };
       mediaDetails?: { media_url_https?: string }[];
       photos?: { url?: string }[];
+      favorite_count?: number;
+      conversation_count?: number;
+      retweet_count?: number;
+      views?: string | number | { count?: string | number };
+      view_count?: string | number;
     };
 
     const media = (data.mediaDetails ?? [])
@@ -80,9 +173,50 @@ async function fetchXSyndication(
     const photos = (data.photos ?? []).map((p) => p.url).filter((u): u is string => !!u);
     const media_urls = [...new Set([...media, ...photos])];
 
-    return { text: (data.text ?? "").trim(), name: (data.user?.name ?? "").trim(), media_urls };
+    const views =
+      typeof data.views === "object"
+        ? firstNumberFromUnknown(data.views.count)
+        : firstNumberFromUnknown(data.views);
+
+    return {
+      text: (data.text ?? "").trim(),
+      name: (data.user?.name ?? "").trim(),
+      media_urls,
+      posted_at: normalizeIsoDate(data.created_at),
+      retweet_count: firstNumberFromUnknown(data.retweet_count),
+      like_count: firstNumberFromUnknown(data.favorite_count),
+      reply_count: firstNumberFromUnknown(data.conversation_count),
+      view_count: views ?? firstNumberFromUnknown(data.view_count),
+    };
   } catch {
     return null;
+  }
+}
+
+async function fetchXTweetDetailPage(url: string): Promise<Partial<FetchedPost>> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return {};
+    const html = await res.text();
+    const decoded = decodeEntities(html);
+    const datetime =
+      html.match(/<time[^>]+datetime=["']([^"']+)["']/i)?.[1] ??
+      html.match(/"created_at"\s*:\s*"([^"]+)"/i)?.[1] ??
+      null;
+    const displayedDate = parseDisplayedTweetDate(decoded);
+    return {
+      posted_at: normalizeIsoDate(datetime) ?? displayedDate ?? undefined,
+      view_count: parseViews(decoded),
+    };
+  } catch {
+    return {};
   }
 }
 
@@ -97,6 +231,7 @@ export async function fetchPostPreview(url: string, platform: Platform): Promise
 
   if (platform === "x") {
     const id = target.match(/status\/(\d+)/)?.[1];
+    const detail = await fetchXTweetDetailPage(target);
     if (id) {
       const syn = await fetchXSyndication(id);
       if (syn && (syn.text || syn.media_urls.length > 0)) {
@@ -104,13 +239,25 @@ export async function fetchPostPreview(url: string, platform: Platform): Promise
           ok: true,
           post_text: syn.text,
           display_name: syn.name,
+          posted_at: syn.posted_at ?? detail.posted_at,
           preview_image_url: syn.media_urls[0],
           media_urls: syn.media_urls,
+          retweet_count: syn.retweet_count,
+          like_count: syn.like_count,
+          reply_count: syn.reply_count,
+          view_count: syn.view_count ?? detail.view_count ?? null,
         };
       }
     }
     // Fallback: oEmbed gives text only (no image).
-    return fetchPostViaOembed(target, "x");
+    const fallback = await fetchPostViaOembed(target, "x");
+    return {
+      ...fallback,
+      posted_at: fallback.posted_at ?? detail.posted_at,
+      view_count: fallback.view_count ?? detail.view_count ?? null,
+      ok: fallback.ok || !!detail.posted_at || detail.view_count != null,
+      reason: fallback.ok ? fallback.reason : detail.posted_at || detail.view_count != null ? undefined : fallback.reason,
+    };
   }
 
   // TikTok: oEmbed returns a real thumbnail.

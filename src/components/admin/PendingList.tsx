@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PLATFORM_LABELS, LENS_LABELS_TH, SOURCE_LABELS_TH, type ReviewWithMedia } from "@/types/review";
-import { formatThaiDate } from "@/lib/utils/format";
+import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
 import { updatePost, type PostPatch } from "@/lib/actions/reviews";
 
 type Action = "approved" | "hidden" | "duplicate";
@@ -74,6 +74,11 @@ function PendingCard({
             </span>
           </div>
           <p className="mt-2 text-sm text-text line-clamp-2">{review.post_text}</p>
+          <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] font-semibold text-label">
+            {review.year && <span className="rounded-full bg-surface-container px-2 py-0.5">ปี {review.year}</span>}
+            {review.posted_at && <span className="rounded-full bg-surface-container px-2 py-0.5">{formatThaiDate(review.posted_at)}</span>}
+            {review.view_count > 0 && <span className="rounded-full bg-surface-container px-2 py-0.5">{formatCompactNumber(review.view_count)} views</span>}
+          </div>
           {review.model_hint && (
             <p className="mt-1 rounded-control bg-pastel-yellow/60 px-2 py-1 text-xs font-medium text-pastel-yellow-text">
               Hint: {review.model_hint}
