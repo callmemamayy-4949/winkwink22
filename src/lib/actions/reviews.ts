@@ -528,7 +528,21 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
   };
   if (rows.length === 0) return summary;
   if (rows.length > MAX_IMPORT_ROWS) {
-    throw new Error(`ไฟล์มีจำนวนรายการมากเกินไป (สูงสุด ${MAX_IMPORT_ROWS} รายการต่อครั้ง)`);
+    summary.failed = rows.length;
+    summary.errors.push({
+      row: 0,
+      message: `ไฟล์มี ${rows.length} รายการ เกินสูงสุด ${MAX_IMPORT_ROWS} รายการต่อครั้ง`,
+    });
+    summary.rowLogs.push({
+      row: 0,
+      original_url: "",
+      status: "error",
+      scrape_status: "not_attempted",
+      insert_status: "error",
+      model_match_status: "unknown",
+      message: `ไฟล์มี ${rows.length} รายการ เกินสูงสุด ${MAX_IMPORT_ROWS} รายการต่อครั้ง`,
+    });
+    return summary;
   }
 
   const supabase = getAdminSupabase();
@@ -602,7 +616,18 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
     .in("original_url", urls);
 
   if (existingError) {
-    throw new Error(`ตรวจสอบข้อมูลซ้ำไม่สำเร็จ: ${existingError.message}`);
+    summary.failed += candidates.length;
+    summary.errors.push({ row: 0, message: `ตรวจสอบข้อมูลซ้ำไม่สำเร็จ: ${existingError.message}` });
+    summary.rowLogs.push({
+      row: 0,
+      original_url: "",
+      status: "error",
+      scrape_status: "not_attempted",
+      insert_status: "error",
+      model_match_status: "unknown",
+      message: `ตรวจสอบข้อมูลซ้ำไม่สำเร็จ: ${existingError.message}`,
+    });
+    return summary;
   }
   const existingUrls = new Set((existingRows ?? []).map((r) => r.original_url as string));
 

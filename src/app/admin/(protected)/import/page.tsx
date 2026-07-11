@@ -9,6 +9,7 @@ import type { ImportRow } from "@/types/review";
 const LENS_VALUES = new Set(["with_lens", "without_lens", "unknown"]);
 const SOURCE_VALUES = new Set(["customer", "shop", "unknown"]);
 const MODEL_MATCH_VALUES = new Set(["canonical", "suggested", "unknown"]);
+const MAX_IMPORT_ROWS = 40;
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
@@ -123,6 +124,10 @@ export default function AdminImportPage() {
       const rows = await parseFile(file);
       if (rows.length === 0) {
         setError("ไม่พบข้อมูลในไฟล์ หรือรูปแบบไฟล์ไม่ถูกต้อง");
+        return;
+      }
+      if (rows.length > MAX_IMPORT_ROWS) {
+        setError(`ไฟล์นี้มี ${rows.length} แถว เกิน limit ${MAX_IMPORT_ROWS} แถวต่อครั้ง กรุณาแยกไฟล์ก่อนนำเข้า`);
         return;
       }
       const result = await importReviews(rows);
@@ -243,7 +248,7 @@ export default function AdminImportPage() {
               href="/admin/pending"
               className="mt-5 block w-full rounded-full bg-primary py-3 text-center text-sm font-semibold text-on-primary transition-transform hover:scale-[1.01] active:scale-95"
             >
-              ไปตรวจโพสต์ pending →
+              ตรวจ Pending →
             </Link>
           )}
         </div>
