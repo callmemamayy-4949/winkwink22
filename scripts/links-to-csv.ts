@@ -32,6 +32,7 @@ import { rowsToCsv, type CsvColumn } from "../src/lib/utils/csv";
 import { fetchPostPreview } from "../src/lib/utils/oembed";
 import { parsePostUrl } from "../src/lib/utils/parse-review";
 import { buildImportRow } from "../src/lib/utils/link-to-row";
+import { normalizeImportRowPhoneFields } from "../src/lib/utils/phone-models";
 import type { ImportRow } from "../src/types/review";
 
 // ─── CLI args ──────────────────────────────────────────────────
@@ -42,18 +43,54 @@ function getArg(flag: string, fallback: string): string {
 }
 const FILE = getArg("--file", "links.txt");
 const DELAY_MS = parseInt(getArg("--delay", "600"), 10); // polite gap between requests
+const URL_RE = /https?:\/\/[^\s,]+/gi;
+
+interface LinkEntry {
+  url: string;
+  caption: string | null;
+}
+
+function cleanCaption(text: string): string | null {
+  const cleaned = text
+    .replace(/\r/g, "\n")
+    .replace(/ข้อความอยู่บนลิ้ง/gi, "")
+    .replace(/ข้อความอยู่บนลิงก์/gi, "")
+    .replace(/^[\s,]+|[\s,]+$/g, "")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return cleaned === "" ? null : cleaned;
+}
+
+function extractEntries(text: string): LinkEntry[] {
+  const entries: LinkEntry[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  URL_RE.lastIndex = 0;
+
+  while ((match = URL_RE.exec(text)) !== null) {
+    const rawUrl = match[0].replace(/[)\].,，。]+$/g, "");
+    const between = text.slice(cursor, match.index);
+    entries.push({
+      url: rawUrl,
+      caption: cleanCaption(between),
+    });
+    cursor = match.index + match[0].length;
+  }
+
+  return entries;
+}
 
 // Links can come from the file and/or as bare positional args.
-function collectLinks(): string[] {
-  const inline = argv.filter((a) => /^https?:\/\//i.test(a));
-  let fromFile: string[] = [];
+function collectEntries(): LinkEntry[] {
+  const inline = argv
+    .filter((a) => /^https?:\/\//i.test(a))
+    .map((url) => ({ url, caption: null }));
+  let fromFile: LinkEntry[] = [];
   const filePath = path.resolve(FILE);
   if (fs.existsSync(filePath)) {
-    fromFile = fs
-      .readFileSync(filePath, "utf-8")
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#"));
+    const raw = fs.readFileSync(filePath, "utf-8");
+    fromFile = extractEntries(raw);
   }
   return [...fromFile, ...inline];
 }
@@ -99,20 +136,45 @@ function toCsvRow(row: ImportRow): Record<CsvColumn, string> {
   };
 }
 
-async function resolveLink(rawUrl: string): Promise<ImportRow | null> {
-  const parsed = parsePostUrl(rawUrl);
+async function resolveEntry(entry: LinkEntry): Promise<ImportRow | null> {
+  const parsed = parsePostUrl(entry.url);
   if (!parsed) {
-    console.warn(`  ⚠️  ข้ามลิงก์ (ไม่ใช่ X/TikTok): ${rawUrl}`);
+    console.warn(`  ⚠️  ข้ามลิงก์ (ไม่ใช่ X/TikTok): ${entry.url}`);
     return null;
   }
 
   const fetched = await fetchPostPreview(parsed.original_url, parsed.platform);
-  const row = buildImportRow(parsed, fetched);
+  const row = normalizeImportRowPhoneFields({
+    ...buildImportRow(parsed, fetched),
+    caption: entry.caption,
+    model_hint: entry.caption,
+    import_note: entry.caption,
+  });
 
   const img = row.preview_image_url ? " 🖼️" : "";
   const tag = fetched.ok ? "✅" : "◻️ (ดึงข้อความไม่ได้ — เก็บลิงก์ไว้)";
-  console.log(`  ${tag}${img}  ${row.username} — ${(row.post_text || parsed.original_url).slice(0, 55)}`);
+  const hint = row.model_hint ? ` | hint: ${row.model_hint.slice(0, 35)}` : "";
+  console.log(`  ${tag}${img}  ${row.username} — ${(row.post_text || parsed.original_url).slice(0, 55)}${hint}`);
   return row;
+}
+
+function mergeRows(existing: ImportRow, incoming: ImportRow): ImportRow {
+  const merged = normalizeImportRowPhoneFields({
+    ...existing,
+    caption: existing.caption || incoming.caption,
+    model_hint: existing.model_hint || incoming.model_hint,
+    import_note: existing.import_note || incoming.import_note,
+    phone_brand: existing.phone_brand || incoming.phone_brand,
+    phone_model: existing.phone_model || incoming.phone_model,
+    phone_slug: existing.phone_slug || incoming.phone_slug,
+    lens_status: existing.lens_status && existing.lens_status !== "unknown" ? existing.lens_status : incoming.lens_status,
+    suggested_model: existing.suggested_model || incoming.suggested_model,
+    model_match_status:
+      existing.model_match_status && existing.model_match_status !== "unknown"
+        ? existing.model_match_status
+        : incoming.model_match_status,
+  });
+  return merged;
 }
 
 async function run() {
@@ -120,8 +182,8 @@ async function run() {
   console.log("║  Winkwink Links → CSV (official oEmbed) ║");
   console.log("╚══════════════════════════════════════╝\n");
 
-  const links = collectLinks();
-  if (links.length === 0) {
+  const entries = collectEntries();
+  if (entries.length === 0) {
     console.error(`⛔  ไม่พบลิงก์เลย`);
     console.error(`    ใส่ลิงก์ (บรรทัดละ 1 อัน) ในไฟล์ "${FILE}" แล้วรันใหม่`);
     console.error(`    หรือ: npm run links:csv -- https://x.com/user/status/123`);
@@ -131,25 +193,29 @@ async function run() {
   // De-dupe within this batch by normalised original_url.
   const seen = new Set<string>();
   const results: ImportRow[] = [];
+  const byUrl = new Map<string, number>();
   let skipped = 0;
 
-  console.log(`พบ ${links.length} ลิงก์ — เริ่มดึงข้อมูล...\n`);
+  console.log(`พบ ${entries.length} ลิงก์ — เริ่มดึงข้อมูล...\n`);
 
-  for (let i = 0; i < links.length; i++) {
-    process.stdout.write(`[${i + 1}/${links.length}] `);
-    const row = await resolveLink(links[i]);
+  for (let i = 0; i < entries.length; i++) {
+    process.stdout.write(`[${i + 1}/${entries.length}] `);
+    const row = await resolveEntry(entries[i]);
     if (!row) {
       skipped++;
       continue;
     }
-    if (seen.has(row.original_url)) {
-      console.log(`      ↳ ซ้ำในไฟล์ ข้าม`);
+    const existingIndex = byUrl.get(row.original_url);
+    if (seen.has(row.original_url) && existingIndex !== undefined) {
+      results[existingIndex] = mergeRows(results[existingIndex], row);
+      console.log(`      ↳ ซ้ำในไฟล์ เติม hint/รุ่นให้รายการเดิม`);
       skipped++;
       continue;
     }
     seen.add(row.original_url);
+    byUrl.set(row.original_url, results.length);
     results.push(row);
-    if (i < links.length - 1) await sleep(DELAY_MS);
+    if (i < entries.length - 1) await sleep(DELAY_MS);
   }
 
   if (results.length === 0) {
@@ -157,7 +223,7 @@ async function run() {
     process.exit(1);
   }
 
-  const dateStr = new Date().toISOString().slice(0, 10);
+  const dateStr = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const exportsDir = path.join(process.cwd(), "exports");
   fs.mkdirSync(exportsDir, { recursive: true });
 
