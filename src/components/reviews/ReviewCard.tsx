@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/Badge";
 import { ReviewImage } from "@/components/reviews/ReviewImage";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
 
+const LINE_BOOKING_URL = "https://line.me/R/ti/p/@777orbcb?oat_content=url&ts=10181227";
+
 function PlatformIcon({ platform }: { platform: "x" | "tiktok" }) {
   if (platform === "x") {
     return (
@@ -23,27 +25,69 @@ function PlatformIcon({ platform }: { platform: "x" | "tiktok" }) {
   );
 }
 
+function compactKey(value: string | null | undefined): string {
+  return (value ?? "").toLowerCase().replace(/[^a-z0-9ก-๙]+/g, "");
+}
+
+function displayModelTitle(review: ReviewWithMedia): string {
+  const brand = review.phone_brand?.trim() ?? "";
+  const model = review.phone_model?.trim() ?? "";
+  if (!model) return brand || "Winkwink Review";
+  if (brand && compactKey(model).startsWith(compactKey(brand))) return model;
+  return [brand, model].filter(Boolean).join(" ");
+}
+
+function displaySummary(review: ReviewWithMedia, title: string, lensLabel: string): string {
+  const raw = (review.summary_th || review.post_text || "").trim();
+  const titleKey = compactKey(title);
+  const rawKey = compactKey(raw);
+  const lensText = lensLabel !== LENS_LABELS_TH.unknown ? ` ${lensLabel}` : "";
+
+  if (!raw) return `ตัวอย่างภาพจากงานจริง${lensText}`;
+  if (rawKey.includes(titleKey) || raw.startsWith("รีวิว")) {
+    return review.place ? `รีวิวจาก${review.place}${lensText}` : `ตัวอย่างภาพจากงานจริง${lensText}`;
+  }
+  return raw;
+}
+
+function displayUsername(review: ReviewWithMedia): string {
+  const username = (review.username || review.display_name || "").replace(/^@/, "").trim();
+  if (!username) return "รีวิว";
+  if (review.review_source_type === "customer") return username.slice(0, 2);
+  return username.startsWith("@") ? username : `@${username}`;
+}
+
 export function ReviewCard({ review }: { review: ReviewWithMedia }) {
   const cover = review.media[0];
-  const summary = review.summary_th || review.post_text;
+  const title = displayModelTitle(review);
   const lensLabel = LENS_LABELS_TH[review.lens_status] ?? LENS_LABELS_TH.unknown;
   const sourceLabel = SOURCE_LABELS_TH[review.review_source_type] ?? SOURCE_LABELS_TH.unknown;
   const platformLabel = PLATFORM_LABELS[review.platform] ?? review.platform;
+  const summary = displaySummary(review, title, lensLabel);
+  const username = displayUsername(review);
+  const metadata = [
+    lensLabel !== LENS_LABELS_TH.unknown ? lensLabel : null,
+    review.year ? String(review.year) : null,
+    platformLabel,
+  ].filter((value, index, all): value is string => !!value && all.indexOf(value) === index);
   const stats = [
-    { label: "RT", value: review.retweet_count },
-    { label: "Like", value: review.like_count },
-    { label: "View", value: review.view_count },
+    { label: "รีโพสต์", value: review.retweet_count },
+    { label: "ถูกใจ", value: review.like_count },
+    { label: "เข้าชม", value: review.view_count },
   ].filter((s) => s.value > 0);
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/85 shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-container">
+    <article className="group flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/90 shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
+      <div className="relative h-72 w-full overflow-hidden rounded-t-card bg-surface-container sm:h-80">
         <div className="h-full w-full transition-transform duration-500 group-hover:scale-105">
           <ReviewImage src={cover?.thumbnail_url ?? cover?.media_url ?? null} alt={summary} />
         </div>
 
         <div className="absolute left-2.5 top-2.5">
-          <Badge tone={review.review_source_type === "shop" ? "mint" : "primary"}>
+          <Badge
+            tone={review.review_source_type === "shop" ? "mint" : "white"}
+            className="px-2.5 py-0.5 text-[10px] font-semibold"
+          >
             {sourceLabel}
           </Badge>
         </div>
@@ -55,13 +99,13 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div>
-          <h3 className="font-display text-title-md font-semibold text-text-strong leading-snug">
-            {review.phone_brand} {review.phone_model}
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="space-y-1.5">
+          <h3 className="font-display text-title-md font-semibold leading-snug text-text-strong">
+            {title}
           </h3>
           {review.place && (
-            <p className="mt-0.5 flex items-center gap-1 text-sm font-medium text-primary">
+            <p className="flex items-center gap-1 text-sm font-medium text-primary">
               <svg
                 viewBox="0 0 24 24"
                 fill="currentColor"
@@ -75,22 +119,17 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
           )}
         </div>
 
-        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-label">
-          <span>{lensLabel}</span>
-          {review.year && (
-            <>
-              <span aria-hidden>•</span>
-              <span>{review.year}</span>
-            </>
-          )}
-          <span aria-hidden>•</span>
-          <span className="inline-flex items-center gap-1">
-            <PlatformIcon platform={review.platform} />
-            {platformLabel}
-          </span>
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-label">
+          {metadata.map((item, index) => (
+            <span key={item} className={item === platformLabel ? "inline-flex items-center gap-1" : ""}>
+              {index > 0 && <span className="mr-1.5" aria-hidden>•</span>}
+              {item === platformLabel && <PlatformIcon platform={review.platform} />}
+              {item}
+            </span>
+          ))}
         </p>
 
-        <p className="line-clamp-2 text-sm text-text">{summary}</p>
+        <p className="line-clamp-2 text-sm leading-6 text-text">{summary}</p>
 
         {stats.length > 0 && (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-label">
@@ -102,26 +141,36 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
           </div>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/60 pt-3">
+        <div className="mt-auto space-y-3 border-t border-white/60 pt-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-primary text-[11px] text-white shadow-sm">
               ♡
             </div>
             <div className="min-w-0 leading-tight">
               <p className="truncate text-xs font-semibold text-text-strong">
-                {review.username}
+                {username}
               </p>
               <p className="truncate text-[11px] text-label">{formatThaiDate(review.posted_at)}</p>
             </div>
           </div>
-          <a
-            href={review.original_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-full border border-primary/25 bg-primary-container/60 px-3 py-1.5 text-xs font-semibold text-primary transition-transform hover:scale-[1.04] active:scale-95"
-          >
-            ดูโพสต์ต้นฉบับ
-          </a>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1.2fr]">
+            <a
+              href={review.original_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-primary/25 bg-white/70 px-3 py-2 text-center text-xs font-semibold text-primary transition-transform hover:scale-[1.02] active:scale-95"
+            >
+              ดูคลิปบน {platformLabel}
+            </a>
+            <a
+              href={LINE_BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full bg-gradient-primary px-4 py-2 text-center text-xs font-bold text-on-primary shadow-glow transition-transform hover:scale-[1.03] active:scale-95"
+            >
+              จองรุ่นนี้
+            </a>
+          </div>
         </div>
       </div>
     </article>
