@@ -1,4 +1,4 @@
-import type { ImportRow, LensStatus } from "@/types/review";
+import type { ImportRow, LensStatus, ModelMatchStatus } from "@/types/review";
 import { slugify } from "@/lib/utils/slugify";
 
 export interface PhoneModelMaster {
@@ -14,6 +14,7 @@ export interface PhoneModelNormalization {
   phone_slug: string | null;
   lens_status: LensStatus;
   suggested_model: string | null;
+  model_match_status: ModelMatchStatus;
 }
 
 export const PHONE_MODEL_MASTER_LIST: PhoneModelMaster[] = [
@@ -149,6 +150,7 @@ function fromMaster(master: PhoneModelMaster, fallbackLens: LensStatus = "unknow
     phone_slug: master.slug,
     lens_status: master.hasLens ? "with_lens" : fallbackLens === "with_lens" ? "unknown" : fallbackLens,
     suggested_model: null,
+    model_match_status: "canonical",
   };
 }
 
@@ -179,6 +181,7 @@ export function normalizePhoneModel(input: {
     phone_slug: null,
     lens_status: noLens ? "without_lens" : wantsLens ? "unknown" : "unknown",
     suggested_model: detectSuggestedModel(text),
+    model_match_status: detectSuggestedModel(text) ? "suggested" : "unknown",
   };
 }
 
@@ -187,7 +190,7 @@ export function normalizeImportRowPhoneFields(row: ImportRow): ImportRow {
     phoneBrand: row.phone_brand,
     phoneModel: row.phone_model,
     phoneSlug: row.phone_slug,
-    texts: [row.caption, row.summary_th, row.post_text],
+    texts: [row.model_hint, row.import_note, row.caption, row.summary_th, row.post_text],
   });
 
   return {
@@ -197,5 +200,6 @@ export function normalizeImportRowPhoneFields(row: ImportRow): ImportRow {
     phone_slug: normalized.phone_slug,
     lens_status: normalized.lens_status,
     suggested_model: normalized.suggested_model ?? row.suggested_model ?? null,
+    model_match_status: normalized.model_match_status,
   };
 }

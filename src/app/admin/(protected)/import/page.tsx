@@ -8,6 +8,7 @@ import type { ImportRow } from "@/types/review";
 
 const LENS_VALUES = new Set(["with_lens", "without_lens", "unknown"]);
 const SOURCE_VALUES = new Set(["customer", "shop", "unknown"]);
+const MODEL_MATCH_VALUES = new Set(["canonical", "suggested", "unknown"]);
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
@@ -38,6 +39,8 @@ function normalizeJsonRow(raw: unknown): ImportRow | null {
     display_name: str(r.display_name),
     post_text: str(r.post_text),
     caption: str(r.caption),
+    model_hint: str(r.model_hint) ?? str(r.import_note) ?? str(r.caption),
+    import_note: str(r.import_note) ?? str(r.caption),
     media_urls: arr(r.media_urls).length > 0 ? arr(r.media_urls) : mediaArr(r.media_url),
     thumbnail_url: str(r.thumbnail_url),
     preview_image_url: str(r.preview_image_url),
@@ -49,6 +52,9 @@ function normalizeJsonRow(raw: unknown): ImportRow | null {
     phone_slug: str(r.phone_slug),
     lens_status: (LENS_VALUES.has(r.lens_status as string) ? r.lens_status : "unknown") as ImportRow["lens_status"],
     suggested_model: str(r.suggested_model) ?? str(r.candidate_model),
+    model_match_status: (MODEL_MATCH_VALUES.has(r.model_match_status as string)
+      ? r.model_match_status
+      : "unknown") as ImportRow["model_match_status"],
     place: str(r.place),
     place_slug: str(r.place_slug),
     video_quality: str(r.video_quality),
@@ -119,7 +125,7 @@ export default function AdminImportPage() {
       <div>
         <h1 className="text-2xl font-extrabold text-primary">นำเข้ารีวิวจากไฟล์</h1>
         <p className="mt-1 text-sm text-label">
-          อัปโหลดไฟล์ JSON หรือ CSV ที่ได้จาก <code>npm run scrape:x</code> (โฟลเดอร์ <code>exports/</code>)
+          อัปโหลดไฟล์ JSON/CSV ได้สูงสุด 40 แถวต่อครั้ง ถ้ามี <code>caption</code> ระบบจะเก็บเป็น model hint ไม่ใช่ post text
         </p>
       </div>
 
@@ -176,6 +182,8 @@ export default function AdminImportPage() {
               { label: "ซ้ำ (ข้าม)", value: summary.duplicate, cls: "bg-pastel-purple text-pastel-purple-text" },
               { label: "Scrape สำเร็จ", value: summary.scrapeSuccess, cls: "bg-pastel-mint text-pastel-mint-text" },
               { label: "Scrape ไม่สำเร็จ", value: summary.scrapeFailed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
+              { label: "รุ่นที่ระบบสงสัย", value: summary.suggestedModelCount, cls: "bg-pastel-purple text-pastel-purple-text" },
+              { label: "ไม่เจอรุ่น", value: summary.unmatchedModelCount, cls: "bg-pastel-yellow text-pastel-yellow-text" },
               { label: "ไม่สำเร็จ", value: summary.failed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
             ].map((s) => (
               <div key={s.label} className={`rounded-control p-3 text-center ${s.cls}`}>
@@ -205,6 +213,9 @@ export default function AdminImportPage() {
                 {summary.rowLogs.map((log, index) => (
                   <li key={`${log.row}-${log.status}-${index}`} className="break-all">
                     แถวที่ {log.row}: <span className="font-semibold">{log.status}</span>
+                    {log.scrape_status ? ` · scrape:${log.scrape_status}` : ""}
+                    {log.insert_status ? ` · insert:${log.insert_status}` : ""}
+                    {log.model_match_status ? ` · model:${log.model_match_status}` : ""}
                     {log.original_url ? ` · ${log.original_url}` : ""} · {log.message}
                   </li>
                 ))}

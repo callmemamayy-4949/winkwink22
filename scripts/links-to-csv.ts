@@ -80,6 +80,8 @@ function toCsvRow(row: ImportRow): Record<CsvColumn, string> {
     phone_slug:          row.phone_slug ?? "",
     lens_status:         row.lens_status ?? "unknown",
     suggested_model:     row.suggested_model ?? "",
+    model_hint:          row.model_hint ?? "",
+    model_match_status:  row.model_match_status ?? "unknown",
     place:               row.place ?? "",
     place_slug:          row.place_slug ?? "",
     video_quality:       row.video_quality ?? "",

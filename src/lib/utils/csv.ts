@@ -7,7 +7,7 @@ import type { ImportRow } from "@/types/review";
 export const CSV_COLUMNS = [
   "original_url", "platform", "tweet_id", "username", "display_name", "post_text", "caption",
   "media_urls", "thumbnail_url", "preview_image_url", "posted_at", "source_keyword", "hashtags",
-  "phone_brand", "phone_model", "phone_slug", "lens_status", "suggested_model", "place", "place_slug",
+  "phone_brand", "phone_model", "phone_slug", "lens_status", "suggested_model", "model_hint", "model_match_status", "place", "place_slug",
   "video_quality", "year", "app_used", "summary_th", "confidence",
   "retweet_count", "like_count", "reply_count", "view_count",
   "review_source_type", "status", "scraped_at",
@@ -98,6 +98,11 @@ function toArray(v: string | undefined): string[] {
   return trimmed === "" ? [] : trimmed.split("|").map((s) => s.trim()).filter(Boolean);
 }
 
+function toModelMatchStatus(v: string | undefined): ImportRow["model_match_status"] {
+  const value = toNullableString(v);
+  return value === "canonical" || value === "suggested" || value === "unknown" ? value : undefined;
+}
+
 /** Convert a parsed CSV table (first row = header) into ImportRow objects, matching by column name. */
 export function csvTableToImportRows(table: string[][]): ImportRow[] {
   if (table.length === 0) return [];
@@ -122,6 +127,7 @@ export function csvTableToImportRows(table: string[][]): ImportRow[] {
       display_name: toNullableString(get(row, "display_name")),
       post_text: toNullableString(get(row, "post_text")),
       caption: toNullableString(get(row, "caption")),
+      model_hint: toNullableString(getFirst(row, ["model_hint", "import_note"])) ?? toNullableString(get(row, "caption")),
       media_urls: toArray(getFirst(row, ["media_urls", "media_url"])),
       thumbnail_url: toNullableString(get(row, "thumbnail_url")),
       preview_image_url: toNullableString(get(row, "preview_image_url")),
@@ -133,6 +139,7 @@ export function csvTableToImportRows(table: string[][]): ImportRow[] {
       phone_slug: toNullableString(get(row, "phone_slug")),
       lens_status: (toNullableString(get(row, "lens_status")) ?? "unknown") as ImportRow["lens_status"],
       suggested_model: toNullableString(getFirst(row, ["suggested_model", "candidate_model"])),
+      model_match_status: toModelMatchStatus(get(row, "model_match_status")),
       place: toNullableString(get(row, "place")),
       place_slug: toNullableString(get(row, "place_slug")),
       video_quality: toNullableString(get(row, "video_quality")),

@@ -6,6 +6,8 @@ export type ReviewSourceType = "customer" | "shop" | "unknown";
 
 export type PostStatus = "pending" | "approved" | "hidden" | "duplicate";
 
+export type ModelMatchStatus = "canonical" | "suggested" | "unknown";
+
 export type MediaType = "image" | "video" | "thumbnail";
 
 export type SortOption =
@@ -33,6 +35,8 @@ export interface Post {
   phone_slug: string | null;
   lens_status: LensStatus;
   suggested_model: string | null;
+  model_hint: string | null;
+  model_match_status: ModelMatchStatus;
   place: string | null;
   place_slug: string | null;
   video_quality: string | null;
@@ -106,6 +110,9 @@ export interface ImportRow {
   phone_slug?: string | null;
   lens_status?: LensStatus;
   suggested_model?: string | null;
+  model_hint?: string | null;
+  import_note?: string | null;
+  model_match_status?: ModelMatchStatus;
   place?: string | null;
   place_slug?: string | null;
   video_quality?: string | null;

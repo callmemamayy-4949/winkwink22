@@ -47,6 +47,8 @@ function EditModal({
     phone_slug:         review.phone_slug ?? "",
     lens_status:        review.lens_status,
     suggested_model:    review.suggested_model ?? "",
+    model_hint:         review.model_hint ?? "",
+    model_match_status: review.model_match_status ?? "unknown",
     place:              review.place ?? "",
     place_slug:         review.place_slug ?? "",
     video_quality:      review.video_quality ?? "",
@@ -99,6 +101,8 @@ function EditModal({
           {field("phone_slug", "phone_slug")}
           {field("lens_status", "เลนส์", "select", Object.keys(LENS_LABELS_TH))}
           {field("suggested_model", "รุ่นที่ระบบสงสัย")}
+          {field("model_hint", "model hint")}
+          {field("model_match_status", "model match", "select", ["canonical", "suggested", "unknown"])}
           {field("place", "สถานที่")}
           {field("place_slug", "place_slug")}
           {field("video_quality", "คุณภาพวิดีโอ")}
@@ -270,6 +274,7 @@ export function AdminReviewsTable({ initialReviews }: { initialReviews: ReviewWi
                 <td className="px-4 py-3">
                   <p className="font-medium text-text-strong">{r.phone_brand}</p>
                   <p className="text-xs text-label">{r.phone_model}</p>
+                  {r.model_hint && <p className="text-xs text-label">Hint: {r.model_hint}</p>}
                   {r.suggested_model && <p className="text-xs text-pastel-yellow-text">สงสัย: {r.suggested_model}</p>}
                   <p className="text-xs text-label">{LENS_LABELS_TH[r.lens_status]}</p>
                 </td>

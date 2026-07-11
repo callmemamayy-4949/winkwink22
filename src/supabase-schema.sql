@@ -38,6 +38,9 @@ create table if not exists posts (
   lens_status           text not null default 'unknown'
                           check (lens_status in ('with_lens', 'without_lens', 'unknown')),
   suggested_model       text,                           -- possible future model, admin must approve before canonical use
+  model_hint            text,                           -- CSV caption/import hint, never treated as real post_text
+  model_match_status    text not null default 'unknown'
+                          check (model_match_status in ('canonical', 'suggested', 'unknown')),
   place                 text,
   place_slug            text,
   video_quality         text,                           -- 4K | 1080p | 720p | ...

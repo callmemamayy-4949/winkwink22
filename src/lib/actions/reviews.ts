@@ -12,6 +12,7 @@ import { slugify } from "@/lib/utils/slugify";
 import type {
   ImportRow,
   LensStatus,
+  ModelMatchStatus,
   Platform,
   PostStatus,
   ReviewSourceType,
@@ -31,6 +32,7 @@ const LENS_VALUES: LensStatus[] = ["with_lens", "without_lens", "unknown"];
 const SOURCE_VALUES: ReviewSourceType[] = ["customer", "shop", "unknown"];
 const PLATFORM_VALUES: Platform[] = ["x", "tiktok"];
 const STATUS_VALUES: PostStatus[] = ["pending", "approved", "hidden", "duplicate"];
+const MODEL_MATCH_VALUES: ModelMatchStatus[] = ["canonical", "suggested", "unknown"];
 
 function revalidateReviewPaths() {
   // Simplest correct option: no local layout exists under app/reviews, so
@@ -115,6 +117,8 @@ export interface PostPatch {
   phone_slug?: string | null;
   lens_status?: LensStatus;
   suggested_model?: string | null;
+  model_hint?: string | null;
+  model_match_status?: ModelMatchStatus;
   place?: string | null;
   place_slug?: string | null;
   video_quality?: string | null;
@@ -142,9 +146,17 @@ function sanitizePatch(patch: PostPatch): Record<string, unknown> {
     out.phone_model = phone.phone_model;
     out.phone_slug = phone.phone_slug;
     out.suggested_model = patch.suggested_model || phone.suggested_model || null;
+    out.model_match_status = phone.model_match_status;
     if (phone.lens_status !== "unknown") out.lens_status = phone.lens_status;
   } else if ("suggested_model" in patch) {
     out.suggested_model = patch.suggested_model || null;
+  }
+  if ("model_hint" in patch) out.model_hint = patch.model_hint || null;
+  if ("model_match_status" in patch) {
+    if (patch.model_match_status && !MODEL_MATCH_VALUES.includes(patch.model_match_status)) {
+      throw new Error("model_match_status ไม่ถูกต้อง");
+    }
+    out.model_match_status = patch.model_match_status || "unknown";
   }
   if ("place" in patch) out.place = patch.place || null;
   if ("place_slug" in patch) out.place_slug = patch.place_slug || null;
@@ -394,6 +406,8 @@ export async function createManualReview(
     phone_slug: phone.phone_slug,
     lens_status: LENS_VALUES.includes(lensStatus) ? lensStatus : "unknown",
     suggested_model: phone.suggested_model,
+    model_hint: null,
+    model_match_status: phone.model_match_status,
     place: input.place || null,
     place_slug: input.place ? slugify(input.place) : null,
     video_quality: input.video_quality || null,
@@ -431,12 +445,17 @@ export interface ImportSummary {
   duplicate: number;
   scrapeSuccess: number;
   scrapeFailed: number;
+  suggestedModelCount: number;
+  unmatchedModelCount: number;
   failed: number;
   errors: { row: number; message: string }[];
   rowLogs: {
     row: number;
     original_url: string;
     status: "inserted" | "duplicate" | "scrape_success" | "scrape_failed" | "error";
+    scrape_status?: "success" | "failed" | "skipped" | "not_attempted";
+    insert_status?: "inserted" | "duplicate" | "skipped" | "error";
+    model_match_status?: ModelMatchStatus;
     message: string;
   }[];
 }
@@ -466,6 +485,10 @@ function toNewPostRow(row: ImportRow) {
     phone_slug: row.phone_slug ?? null,
     lens_status: LENS_VALUES.includes(row.lens_status as LensStatus) ? row.lens_status : "unknown",
     suggested_model: row.suggested_model ?? null,
+    model_hint: row.model_hint ?? row.import_note ?? row.caption ?? null,
+    model_match_status: MODEL_MATCH_VALUES.includes(row.model_match_status as ModelMatchStatus)
+      ? row.model_match_status
+      : "unknown",
     place: row.place ?? null,
     place_slug: row.place_slug ?? null,
     video_quality: row.video_quality ?? null,
@@ -486,7 +509,7 @@ function toNewPostRow(row: ImportRow) {
   };
 }
 
-const MAX_IMPORT_ROWS = 200;
+const MAX_IMPORT_ROWS = 40;
 
 export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
   await requireAdminSession();
@@ -497,6 +520,8 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
     duplicate: 0,
     scrapeSuccess: 0,
     scrapeFailed: 0,
+    suggestedModelCount: 0,
+    unmatchedModelCount: 0,
     failed: 0,
     errors: [],
     rowLogs: [],
@@ -519,6 +544,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: "",
         status: "error",
+        scrape_status: "not_attempted",
+        insert_status: "error",
+        model_match_status: "unknown",
         message: "แถวข้อมูลไม่ถูกต้อง",
       });
       return;
@@ -530,6 +558,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: "",
         status: "error",
+        scrape_status: "not_attempted",
+        insert_status: "error",
+        model_match_status: "unknown",
         message: "ไม่มี original_url",
       });
       return;
@@ -551,6 +582,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: normalizedRow.original_url,
         status: "duplicate",
+        scrape_status: "not_attempted",
+        insert_status: "duplicate",
+        model_match_status: normalizedRow.model_match_status ?? "unknown",
         message: "original_url ซ้ำในไฟล์เดียวกัน",
       });
       return;
@@ -579,6 +613,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: row.original_url,
         status: "duplicate",
+        scrape_status: "not_attempted",
+        insert_status: "duplicate",
+        model_match_status: row.model_match_status ?? "unknown",
         message: "มี original_url นี้อยู่ใน Supabase แล้ว",
       });
       continue;
@@ -592,6 +629,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: row.original_url,
         status: "error",
+        scrape_status: "failed",
+        insert_status: "error",
+        model_match_status: "unknown",
         message: enriched.message,
       });
       continue;
@@ -604,6 +644,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
           row: index + 1,
           original_url: enriched.row.original_url,
           status: "scrape_success",
+          scrape_status: "success",
+          insert_status: "skipped",
+          model_match_status: enriched.row.model_match_status ?? "unknown",
           message: enriched.message,
         });
       } else {
@@ -612,6 +655,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
           row: index + 1,
           original_url: enriched.row.original_url,
           status: "scrape_failed",
+          scrape_status: "failed",
+          insert_status: "skipped",
+          model_match_status: enriched.row.model_match_status ?? "unknown",
           message: enriched.message,
         });
       }
@@ -625,6 +671,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: enriched.row.original_url,
         status: "error",
+        scrape_status: enriched.scrapeAttempted ? (enriched.scrapeOk ? "success" : "failed") : "skipped",
+        insert_status: "error",
+        model_match_status: enriched.row.model_match_status ?? "unknown",
         message: err,
       });
       continue;
@@ -639,10 +688,15 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         enriched.row.thumbnail_url ?? null
       );
       summary.inserted++;
+      if (enriched.row.model_match_status === "suggested") summary.suggestedModelCount++;
+      if (enriched.row.model_match_status === "unknown") summary.unmatchedModelCount++;
       summary.rowLogs.push({
         row: index + 1,
         original_url: enriched.row.original_url,
         status: "inserted",
+        scrape_status: enriched.scrapeAttempted ? (enriched.scrapeOk ? "success" : "failed") : "skipped",
+        insert_status: "inserted",
+        model_match_status: enriched.row.model_match_status ?? "unknown",
         message: "บันทึกเป็น pending แล้ว",
       });
     } catch (e) {
@@ -653,6 +707,9 @@ export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
         row: index + 1,
         original_url: enriched.row.original_url,
         status: "error",
+        scrape_status: enriched.scrapeAttempted ? (enriched.scrapeOk ? "success" : "failed") : "skipped",
+        insert_status: "error",
+        model_match_status: enriched.row.model_match_status ?? "unknown",
         message,
       });
     }

@@ -34,6 +34,8 @@ function PendingCard({
     phone_slug:         review.phone_slug ?? "",
     lens_status:        review.lens_status,
     suggested_model:    review.suggested_model ?? "",
+    model_hint:         review.model_hint ?? "",
+    model_match_status: review.model_match_status ?? "unknown",
     place:              review.place ?? "",
     place_slug:         review.place_slug ?? "",
     video_quality:      review.video_quality ?? "",
@@ -72,6 +74,11 @@ function PendingCard({
             </span>
           </div>
           <p className="mt-2 text-sm text-text line-clamp-2">{review.post_text}</p>
+          {review.model_hint && (
+            <p className="mt-1 rounded-control bg-pastel-yellow/60 px-2 py-1 text-xs font-medium text-pastel-yellow-text">
+              Hint: {review.model_hint}
+            </p>
+          )}
           <a
             href={review.original_url}
             target="_blank"
@@ -92,7 +99,9 @@ function PendingCard({
               ["phone_brand",        "แบรนด์"],
               ["phone_model",        "รุ่นมือถือ"],
               ["phone_slug",         "phone_slug"],
+              ["model_hint",         "model hint"],
               ["suggested_model",    "รุ่นที่ระบบสงสัย"],
+              ["model_match_status", "model match"],
               ["place",              "สถานที่"],
               ["place_slug",         "place_slug"],
               ["video_quality",      "คุณภาพวิดีโอ"],

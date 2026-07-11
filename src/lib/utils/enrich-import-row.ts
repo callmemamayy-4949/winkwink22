@@ -24,7 +24,10 @@ function hasAnyMedia(row: ImportRow) {
   return hasItems(row.media_urls) || hasValue(row.thumbnail_url) || hasValue(row.preview_image_url);
 }
 
-function mergeImportRows(base: ImportRow, fallback: ImportRow): ImportRow {
+function mergeImportRows(base: ImportRow, fallback: ImportRow, options: { scrapeOk?: boolean } = {}): ImportRow {
+  const modelHint = base.model_hint || base.import_note || base.caption || fallback.model_hint || fallback.import_note || fallback.caption || null;
+  const postText = options.scrapeOk && fallback.post_text ? fallback.post_text : base.post_text || fallback.post_text;
+
   return {
     ...base,
     original_url: base.original_url || fallback.original_url,
@@ -32,7 +35,7 @@ function mergeImportRows(base: ImportRow, fallback: ImportRow): ImportRow {
     tweet_id: base.tweet_id || fallback.tweet_id,
     username: base.username || fallback.username,
     display_name: base.display_name || fallback.display_name,
-    post_text: base.post_text || fallback.post_text,
+    post_text: postText,
     media_urls: hasItems(base.media_urls) ? base.media_urls : fallback.media_urls,
     thumbnail_url: base.thumbnail_url || fallback.thumbnail_url,
     preview_image_url: base.preview_image_url || fallback.preview_image_url,
@@ -44,12 +47,15 @@ function mergeImportRows(base: ImportRow, fallback: ImportRow): ImportRow {
     phone_slug: base.phone_slug || fallback.phone_slug,
     lens_status: base.lens_status && base.lens_status !== "unknown" ? base.lens_status : fallback.lens_status,
     suggested_model: base.suggested_model || fallback.suggested_model,
+    model_hint: modelHint,
+    import_note: base.import_note || base.caption || fallback.import_note || fallback.caption,
+    model_match_status: base.model_match_status || fallback.model_match_status,
     place: base.place || fallback.place,
     place_slug: base.place_slug || fallback.place_slug,
     video_quality: base.video_quality || fallback.video_quality,
     year: base.year ?? fallback.year,
     app_used: base.app_used || fallback.app_used,
-    summary_th: base.summary_th || fallback.summary_th,
+    summary_th: base.summary_th || fallback.summary_th || (!options.scrapeOk ? modelHint : null),
     confidence: base.confidence ?? fallback.confidence,
     retweet_count: base.retweet_count ?? fallback.retweet_count,
     like_count: base.like_count ?? fallback.like_count,
@@ -94,7 +100,7 @@ export async function enrichImportRowFromUrl(row: ImportRow): Promise<EnrichedIm
 
   const fetched = await fetchPostPreview(parsed.original_url, parsed.platform);
   return {
-    row: normalizeImportRowPhoneFields(mergeImportRows({ ...row, original_url: parsed.original_url }, buildImportRow(parsed, fetched))),
+    row: normalizeImportRowPhoneFields(mergeImportRows({ ...row, original_url: parsed.original_url }, buildImportRow(parsed, fetched), { scrapeOk: fetched.ok })),
     parsed: true,
     scrapeAttempted: true,
     scrapeOk: fetched.ok,
