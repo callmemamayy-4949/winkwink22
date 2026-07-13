@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { ReviewImage } from "@/components/reviews/ReviewImage";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
+import { buildReviewSummary, cleanReviewTextForSummary } from "@/lib/utils/parse-review";
 
 const LINE_BOOKING_URL = "https://line.me/R/ti/p/@777orbcb?oat_content=url&ts=10181227";
 
@@ -22,17 +23,22 @@ function displayModelTitle(review: ReviewWithMedia): string {
   return [brand, model].filter(Boolean).join(" ");
 }
 
-function displaySummary(review: ReviewWithMedia, title: string, lensLabel: string): string {
+function displaySummary(review: ReviewWithMedia, title: string): string {
   const raw = (review.summary_th || review.post_text || "").trim();
   const titleKey = compactKey(title);
   const rawKey = compactKey(raw);
-  const lensText = lensLabel !== LENS_LABELS_TH.unknown ? ` ${lensLabel}` : "";
+  const brand = review.phone_brand ?? null;
+  const model = review.phone_model ?? null;
+  const cleanedRaw = cleanReviewTextForSummary(raw, brand, model);
 
-  if (!raw) return `ตัวอย่างภาพจากงานจริง${lensText}`;
+  if (!raw) return "ตัวอย่างภาพจากงานจริง";
   if (rawKey.includes(titleKey) || raw.startsWith("รีวิว")) {
-    return review.place ? `รีวิวจาก${review.place}${lensText}` : `ตัวอย่างภาพจากงานจริง${lensText}`;
+    return buildReviewSummary(review.post_text, brand, model) ?? "ตัวอย่างภาพจากงานจริง";
   }
-  return raw;
+  if (!cleanedRaw || compactKey(cleanedRaw).includes(titleKey)) {
+    return buildReviewSummary(review.post_text, brand, model) ?? "ตัวอย่างภาพจากงานจริง";
+  }
+  return cleanedRaw.length > 45 ? cleanedRaw.slice(0, 45).trim() : cleanedRaw;
 }
 
 function displayUsername(review: ReviewWithMedia): string {
@@ -48,7 +54,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
   const lensLabel = LENS_LABELS_TH[review.lens_status] ?? LENS_LABELS_TH.unknown;
   const sourceLabel = SOURCE_LABELS_TH[review.review_source_type] ?? SOURCE_LABELS_TH.unknown;
   const platformLabel = PLATFORM_LABELS[review.platform] ?? review.platform;
-  const summary = displaySummary(review, title, lensLabel);
+  const summary = displaySummary(review, title);
   const username = displayUsername(review);
   const metadata = [
     lensLabel !== LENS_LABELS_TH.unknown ? lensLabel : null,

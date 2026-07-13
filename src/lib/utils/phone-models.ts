@@ -55,7 +55,7 @@ function hasExplicitNoLens(text: string): boolean {
 
 function hasLensMention(text: string): boolean {
   if (hasExplicitNoLens(text)) return false;
-  return /เลนส์เสริม|พร้อม\s*เลนส์|ชุด\s*เลนส์|\+\s*(?:lens|เลนส์)|with\s*lens|\blens\b|เลนส์/i.test(text);
+  return /เลนส์เสริม|พร้อม\s*เลนส์|ชุด\s*เลนส์|\+\s*(?:lens|เลนส์)|with\s*lens|\blens\s*\d+\s*(?:mm)?\b|\b(?:200|300|400)\s*mm\b|\b(?:200|300|400)mm\b|\blens\b|เลนส์/i.test(text);
 }
 
 function findExactMaster(value: string | null | undefined): PhoneModelMaster | null {
