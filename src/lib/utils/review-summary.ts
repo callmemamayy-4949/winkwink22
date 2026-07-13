@@ -6,8 +6,17 @@ function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => !!value))];
 }
 
+export function normalizeReviewText(value: string | null | undefined): string {
+  if (typeof value !== "string") return "";
+  return value
+    .normalize("NFC")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function removeModelTerms(text: string, brand: string | null, model: string | null): string {
-  let cleaned = text;
+  let cleaned = normalizeReviewText(text);
   const modelParts = uniqueNonEmpty([
     brand,
     model,
@@ -39,9 +48,8 @@ export function cleanReviewTextForSummary(text: string, brand: string | null = n
     .replace(/(?:พร้อม|มี|ใช้|ต่อ)?\s*(?:เลนส์เสริม|เลนส์)/gi, " ")
     .replace(/(?:ไม่มี|ไม่ใช้|ไม่ต่อ)\s*เลนส์/gi, " ")
     .replace(/รีวิว(?:วิ้งวิ้ง30|เช่าwinkwink)?/gi, " ")
-    .replace(/[^\p{L}\p{N}\s.,!?:/%+\-]/gu, " ")
-    .replace(/([ก-๙])\1{3,}/gu, "$1$1")
-    .replace(/([a-zA-Z])\1{3,}/g, "$1$1")
+    .replace(/[^\p{L}\p{M}\p{N}\p{P}\p{Z}\p{Extended_Pictographic}]/gu, "")
+    .replace(/(\p{L})\1{3,}/gu, "$1$1")
     .replace(/\s+/g, " ")
     .trim();
 }

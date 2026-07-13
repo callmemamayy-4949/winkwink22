@@ -7,16 +7,16 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { ReviewImage } from "@/components/reviews/ReviewImage";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
-import { cleanReviewTextForSummary } from "@/lib/utils/review-summary";
+import { cleanReviewTextForSummary, normalizeReviewText } from "@/lib/utils/review-summary";
 
 const LINE_BOOKING_URL = "https://line.me/R/ti/p/@777orbcb?oat_content=url&ts=10181227";
 
 function compactKey(value: string | null | undefined): string {
-  return (value ?? "").toLowerCase().replace(/[^a-z0-9ก-๙]+/g, "");
+  return normalizeReviewText(value).toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, "");
 }
 
 function hasThaiText(value: string): boolean {
-  return /[ก-๙]/u.test(value);
+  return /[\u0E00-\u0E7F]/u.test(value);
 }
 
 function isPlaceholderSummary(value: string): boolean {
@@ -43,10 +43,10 @@ function isUsableSummary(value: string, title: string): boolean {
 }
 
 function displaySummary(review: ReviewWithMedia, title: string): string | null {
-  const rawSummary = review.summary_th?.trim() ?? "";
+  const rawSummary = normalizeReviewText(review.summary_th);
   if (rawSummary && isUsableSummary(rawSummary, title)) return rawSummary;
 
-  const raw = review.post_text.trim();
+  const raw = normalizeReviewText(review.post_text);
   const titleKey = compactKey(title);
   const rawKey = compactKey(raw);
   const brand = review.phone_brand ?? null;

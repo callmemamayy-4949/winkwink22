@@ -1,4 +1,5 @@
 import type { ImportRow } from "@/types/review";
+import { normalizeReviewText } from "@/lib/utils/review-summary";
 
 /**
  * Column order used by both the CSV export in scripts/scrape-x.ts and the
@@ -82,7 +83,7 @@ export function parseCsv(text: string): string[][] {
 }
 
 function toNullableString(v: string | undefined): string | null {
-  const trimmed = (v ?? "").trim();
+  const trimmed = normalizeReviewText(v);
   return trimmed === "" ? null : trimmed;
 }
 

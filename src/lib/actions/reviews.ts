@@ -8,6 +8,7 @@ import { fetchPostViaOembed, type FetchedPost } from "@/lib/utils/oembed";
 import { enrichImportRowFromUrl } from "@/lib/utils/enrich-import-row";
 import { normalizePhoneModel } from "@/lib/utils/phone-models";
 import { parsePostUrl } from "@/lib/utils/parse-review";
+import { normalizeReviewText } from "@/lib/utils/review-summary";
 import { slugify } from "@/lib/utils/slugify";
 import type {
   ImportRow,
@@ -482,9 +483,9 @@ function toNewPostRow(row: ImportRow) {
     original_url: row.original_url,
     platform: row.platform,
     tweet_id: row.tweet_id ?? null,
-    username: row.username,
-    display_name: row.display_name || row.username,
-    post_text: row.post_text ?? "",
+    username: normalizeReviewText(row.username),
+    display_name: normalizeReviewText(row.display_name || row.username),
+    post_text: normalizeReviewText(row.post_text),
     posted_at: row.posted_at ?? null,
     scraped_at: row.scraped_at ?? new Date().toISOString(),
     source_keyword: row.source_keyword ?? null,
@@ -493,17 +494,17 @@ function toNewPostRow(row: ImportRow) {
     phone_model: row.phone_model ?? null,
     phone_slug: row.phone_slug ?? null,
     lens_status: LENS_VALUES.includes(row.lens_status as LensStatus) ? row.lens_status : "unknown",
-    suggested_model: row.suggested_model ?? null,
-    model_hint: row.model_hint ?? row.import_note ?? row.caption ?? null,
+    suggested_model: normalizeReviewText(row.suggested_model) || null,
+    model_hint: normalizeReviewText(row.model_hint ?? row.import_note ?? row.caption) || null,
     model_match_status: MODEL_MATCH_VALUES.includes(row.model_match_status as ModelMatchStatus)
       ? row.model_match_status
       : "unknown",
-    place: row.place ?? null,
+    place: normalizeReviewText(row.place) || null,
     place_slug: row.place_slug ?? null,
-    video_quality: row.video_quality ?? null,
-    app_used: row.app_used ?? null,
+    video_quality: normalizeReviewText(row.video_quality) || null,
+    app_used: normalizeReviewText(row.app_used) || null,
     year: row.year ?? null,
-    summary_th: row.summary_th ?? null,
+    summary_th: normalizeReviewText(row.summary_th) || null,
     confidence: row.confidence ?? null,
     retweet_count: row.retweet_count ?? 0,
     like_count: row.like_count ?? 0,
