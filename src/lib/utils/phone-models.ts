@@ -84,7 +84,11 @@ function detectKnownModel(text: string, wantsLens: boolean, noLens: boolean): Ph
 
   for (const series of ["200", "300"]) {
     for (const tier of ["pro", "ultra"] as const) {
-      if (compact.includes(`vivox${series}${tier}`) || compact.includes(`x${series}${tier}`)) {
+      if (
+        compact.includes(`vivox${series}${tier}`) ||
+        compact.includes(`vivo${series}${tier}`) ||
+        compact.includes(`x${series}${tier}`)
+      ) {
         return pickByLens(`Vivo X${series} ${tier === "pro" ? "Pro" : "Ultra"}`, wantsLens, noLens);
       }
     }
@@ -111,7 +115,7 @@ function detectSuggestedModel(text: string): string | null {
     return findExactMaster(model) ? null : model;
   }
 
-  const compactVivo = compact.match(/(?:vivo)?x(\d{3})(pro|ultra)/);
+  const compactVivo = compact.match(/(?:vivo)?x?(\d{3})(pro|ultra)/);
   if (compactVivo) {
     const model = `Vivo X${compactVivo[1]} ${compactVivo[2] === "pro" ? "Pro" : "Ultra"}`;
     return findExactMaster(model) ? null : model;
