@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PLATFORM_LABELS, LENS_LABELS_TH, SOURCE_LABELS_TH, type ImportRow } from "@/types/review";
 import { previewLinks, importReviews, type LinkPreview, type ImportSummary } from "@/lib/actions/reviews";
+import { ImportReviewsSection } from "@/components/admin/ImportReviewsSection";
 
 /** Split a blob of pasted text into candidate links (comma / newline / spaces). */
 function splitLinks(text: string): string[] {
@@ -105,36 +106,40 @@ export default function ManualAddPage() {
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-gradient-primary">เพิ่มรีวิวจากลิงก์</h1>
         <p className="mt-1 text-sm text-label">
-          วางลิงก์ X/TikTok หนึ่งลิงก์หรือหลายลิงก์พร้อมกัน ระบบจะดึงรูป+ข้อมูลให้อัตโนมัติ
+          วางลิงก์ X / TikTok หนึ่งหรือหลายลิงก์ก็ได้
         </p>
       </div>
 
       {/* ── Step 1: paste links ── */}
       {step === "input" && (
-        <section className="rounded-card border border-white/60 bg-white/80 p-5 shadow-card backdrop-blur">
-          <label className="mb-1 block text-sm font-bold text-text-strong">
-            🔗 วางลิงก์ X/TikTok หนึ่งลิงก์หรือหลายลิงก์
-          </label>
-          <p className="mb-3 text-xs text-label">รองรับการวางหลายลิงก์ คั่นด้วย comma หรือขึ้นบรรทัดใหม่</p>
-          <textarea
-            value={linksText}
-            onChange={(e) => setLinksText(e.target.value)}
-            rows={6}
-            placeholder={"https://x.com/user/status/123\nhttps://x.com/another/status/456\nhttps://www.tiktok.com/@u/video/789"}
-            className="w-full rounded-control border border-outline/40 bg-surface-cream px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs text-label">พบ {splitLinks(linksText).length} ลิงก์</span>
-            <button
-              type="button"
-              onClick={handlePreview}
-              disabled={loading}
-              className="font-display rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-on-primary shadow-glow transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-60"
-            >
-              {loading ? "กำลังดึงข้อมูล..." : "ดึงข้อมูลจากลิงก์"}
-            </button>
-          </div>
-        </section>
+        <div className="space-y-6">
+          <section className="rounded-card border border-white/60 bg-white/80 p-5 shadow-card backdrop-blur">
+            <label className="mb-1 block text-sm font-bold text-text-strong">
+              เพิ่มจากลิงก์
+            </label>
+            <p className="mb-3 text-xs text-label">วางลิงก์ X / TikTok คั่นด้วย comma หรือขึ้นบรรทัดใหม่</p>
+            <textarea
+              value={linksText}
+              onChange={(e) => setLinksText(e.target.value)}
+              rows={6}
+              placeholder={"https://x.com/user/status/123\nhttps://x.com/another/status/456\nhttps://www.tiktok.com/@u/video/789"}
+              className="w-full rounded-control border border-outline/40 bg-surface-cream px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-xs text-label">พบ {splitLinks(linksText).length} ลิงก์</span>
+              <button
+                type="button"
+                onClick={handlePreview}
+                disabled={loading}
+                className="font-display rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-on-primary shadow-glow transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-60"
+              >
+                {loading ? "กำลังดึงข้อมูล..." : "ดึงข้อมูล"}
+              </button>
+            </div>
+          </section>
+
+          <ImportReviewsSection />
+        </div>
       )}
 
       {/* ── Step 2: preview cards ── */}
@@ -160,7 +165,7 @@ export default function ManualAddPage() {
               disabled={loading || counts.ready === 0}
               className="font-display rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-glow transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-50"
             >
-              บันทึกเฉพาะที่ไม่ซ้ำ ({counts.ready})
+              บันทึกที่ไม่ซ้ำ ({counts.ready})
             </button>
             <button
               type="button"
@@ -168,7 +173,7 @@ export default function ManualAddPage() {
               disabled={loading}
               className="rounded-full bg-pastel-yellow px-5 py-2.5 text-sm font-semibold text-pastel-yellow-text transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50"
             >
-              บันทึกทั้งหมดเป็น Pending
+              บันทึกทั้งหมด
             </button>
             <button
               type="button"
@@ -213,7 +218,7 @@ export default function ManualAddPage() {
               href="/admin/pending"
               className="font-display rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-glow transition-transform hover:scale-[1.03] active:scale-95"
             >
-              ไปตรวจโพสต์ Pending →
+              ตรวจ Pending →
             </Link>
             <button
               type="button"
@@ -300,7 +305,7 @@ function PreviewCard({ item, onRemove }: { item: Item; onRemove: () => void }) {
               rel="noopener noreferrer"
               className="mt-1.5 inline-block text-xs font-semibold text-primary underline-offset-2 hover:underline"
             >
-              เปิดโพสต์ต้นฉบับ ↗
+              ดูต้นฉบับ ↗
             </a>
           </>
         ) : (

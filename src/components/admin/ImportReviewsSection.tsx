@@ -1,0 +1,233 @@
+"use client";
+
+import { useRef, useState } from "react";
+import Link from "next/link";
+import { importReviews, type ImportSummary } from "@/lib/actions/reviews";
+import { parseCsv, csvTableToImportRows } from "@/lib/utils/csv";
+import type { ImportRow } from "@/types/review";
+
+const LENS_VALUES = new Set(["with_lens", "without_lens", "unknown"]);
+const SOURCE_VALUES = new Set(["customer", "shop", "unknown"]);
+const MODEL_MATCH_VALUES = new Set(["canonical", "suggested", "unknown"]);
+const MAX_IMPORT_ROWS = 200;
+
+function str(v: unknown): string | null {
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+}
+function arr(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+function mediaArr(v: unknown): string[] {
+  if (typeof v === "string" && v.trim() !== "") return [v.trim()];
+  return arr(v);
+}
+function num(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
+  return null;
+}
+
+function displayLogStatus(status: ImportSummary["rowLogs"][number]["status"]) {
+  if (status === "scrape_success") return "ดึงข้อมูลสำเร็จ";
+  if (status === "scrape_failed") return "ดึงข้อมูลไม่สำเร็จ";
+  if (status === "inserted") return "เพิ่มแล้ว";
+  if (status === "duplicate") return "ซ้ำ";
+  return "ไม่สำเร็จ";
+}
+
+function displayFetchStatus(status: NonNullable<ImportSummary["rowLogs"][number]["scrape_status"]>) {
+  if (status === "success") return "สำเร็จ";
+  if (status === "failed") return "ไม่สำเร็จ";
+  if (status === "skipped") return "ข้าม";
+  return "ไม่ได้ดึง";
+}
+
+function normalizeJsonRow(raw: unknown): ImportRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+
+  return {
+    original_url: str(r.original_url) ?? "",
+    platform: (r.platform === "x" || r.platform === "tiktok" ? r.platform : "") as ImportRow["platform"],
+    tweet_id: str(r.tweet_id),
+    username: str(r.username) ?? "",
+    display_name: str(r.display_name),
+    post_text: str(r.post_text),
+    caption: str(r.caption),
+    model_hint: str(r.model_hint) ?? str(r.import_note) ?? str(r.caption),
+    import_note: str(r.import_note) ?? str(r.caption),
+    media_urls: arr(r.media_urls).length > 0 ? arr(r.media_urls) : mediaArr(r.media_url),
+    thumbnail_url: str(r.thumbnail_url),
+    preview_image_url: str(r.preview_image_url),
+    posted_at: str(r.posted_at),
+    source_keyword: str(r.source_keyword),
+    hashtags: arr(r.hashtags),
+    phone_brand: str(r.phone_brand),
+    phone_model: str(r.phone_model),
+    phone_slug: str(r.phone_slug),
+    lens_status: (LENS_VALUES.has(r.lens_status as string) ? r.lens_status : "unknown") as ImportRow["lens_status"],
+    suggested_model: str(r.suggested_model) ?? str(r.candidate_model),
+    model_match_status: (MODEL_MATCH_VALUES.has(r.model_match_status as string)
+      ? r.model_match_status
+      : "unknown") as ImportRow["model_match_status"],
+    place: str(r.place),
+    place_slug: str(r.place_slug),
+    video_quality: str(r.video_quality),
+    year: num(r.year),
+    app_used: str(r.app_used),
+    summary_th: str(r.summary_th),
+    confidence: num(r.confidence),
+    retweet_count: num(r.retweet_count),
+    like_count: num(r.like_count),
+    reply_count: num(r.reply_count),
+    view_count: num(r.view_count),
+    review_source_type: (SOURCE_VALUES.has(r.review_source_type as string)
+      ? r.review_source_type
+      : "unknown") as ImportRow["review_source_type"],
+    scraped_at: str(r.scraped_at),
+  };
+}
+
+async function parseFile(file: File): Promise<ImportRow[]> {
+  const text = await file.text();
+  const isCsv = file.name.toLowerCase().endsWith(".csv");
+
+  if (isCsv) return csvTableToImportRows(parseCsv(text));
+
+  const parsed: unknown = JSON.parse(text);
+  if (!Array.isArray(parsed)) {
+    throw new Error("ไฟล์ JSON ต้องเป็น array ของโพสต์ เช่น [ { ... }, { ... } ]");
+  }
+  return parsed.map(normalizeJsonRow).filter((r): r is ImportRow => r !== null);
+}
+
+export function ImportReviewsSection() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    setError(null);
+    setSummary(null);
+    setLoading(true);
+
+    try {
+      const rows = await parseFile(file);
+      if (rows.length === 0) {
+        setError("ไม่พบข้อมูลในไฟล์ หรือรูปแบบไฟล์ไม่ถูกต้อง");
+        return;
+      }
+      if (rows.length > MAX_IMPORT_ROWS) {
+        setError(`ไฟล์นี้มี ${rows.length} แถว เกิน limit ${MAX_IMPORT_ROWS} แถวต่อครั้ง กรุณาแยกไฟล์ก่อนนำเข้า`);
+        return;
+      }
+      const result = await importReviews(rows);
+      setSummary(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "อ่านไฟล์ไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  return (
+    <section className="space-y-4 rounded-card border border-white/60 bg-white/80 p-5 shadow-card backdrop-blur">
+      <div>
+        <h2 className="font-display text-lg font-bold text-text-strong">นำเข้าจาก CSV</h2>
+        <p className="mt-1 text-xs text-label">
+          เลือกไฟล์ CSV/JSON ได้สูงสุด {MAX_IMPORT_ROWS} แถว ถ้ามี caption ระบบจะเก็บเป็น model hint
+        </p>
+      </div>
+
+      <label
+        htmlFor="import-file"
+        className="flex min-h-36 cursor-pointer touch-manipulation flex-col items-center justify-center gap-2 rounded-control border-2 border-dashed border-outline/40 bg-surface-cream px-4 py-8 text-center transition-colors hover:border-primary/50"
+      >
+        <span className="text-3xl">📄</span>
+        <span className="text-sm font-semibold text-text-strong">
+          {fileName ?? "เลือกไฟล์ CSV"}
+        </span>
+        <span className="text-xs text-label">รองรับไฟล์ที่มี original_url</span>
+      </label>
+      <input
+        ref={fileInputRef}
+        id="import-file"
+        type="file"
+        accept=".json,.csv"
+        onChange={handleFileChange}
+        disabled={loading}
+        className="sr-only"
+      />
+
+      {loading && <p className="text-center text-sm font-semibold text-label">กำลังนำเข้า...</p>}
+
+      {error && (
+        <div className="rounded-control border border-error/30 bg-error/10 p-3 text-sm text-error">
+          ⛔ {error}
+        </div>
+      )}
+
+      {summary && (
+        <div className="rounded-card bg-white p-4 shadow-card">
+          <h3 className="mb-3 text-sm font-bold text-text-strong">สรุปผลการนำเข้า</h3>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "ทั้งหมด", value: summary.total, cls: "bg-surface-container text-text-strong" },
+              { label: "เพิ่มใหม่", value: summary.inserted, cls: "bg-pastel-mint text-pastel-mint-text" },
+              { label: "ซ้ำ", value: summary.duplicate, cls: "bg-pastel-purple text-pastel-purple-text" },
+              { label: "ไม่สำเร็จ", value: summary.failed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
+              { label: "ดึงสำเร็จ", value: summary.scrapeSuccess, cls: "bg-pastel-mint text-pastel-mint-text" },
+              { label: "ดึงไม่สำเร็จ", value: summary.scrapeFailed, cls: "bg-pastel-yellow text-pastel-yellow-text" },
+              { label: "รุ่นที่สงสัย", value: summary.suggestedModelCount, cls: "bg-pastel-purple text-pastel-purple-text" },
+              { label: "ไม่เจอรุ่น", value: summary.unmatchedModelCount, cls: "bg-pastel-yellow text-pastel-yellow-text" },
+            ].map((s) => (
+              <div key={s.label} className={`rounded-control p-3 text-center ${s.cls}`}>
+                <p className="text-2xl font-extrabold">{s.value}</p>
+                <p className="text-xs font-semibold">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {summary.errors.length > 0 && (
+            <ul className="mt-4 max-h-48 space-y-1 overflow-y-auto rounded-control bg-surface-cream p-3 text-xs text-text">
+              {summary.errors.map((e) => (
+                <li key={e.row}>แถวที่ {e.row}: {e.message}</li>
+              ))}
+            </ul>
+          )}
+
+          {summary.rowLogs.length > 0 && (
+            <ul className="mt-4 max-h-64 space-y-1 overflow-y-auto rounded-control bg-surface-cream p-3 text-xs text-text">
+              {summary.rowLogs.map((log, index) => (
+                <li key={`${log.row}-${log.status}-${index}`} className="break-all">
+                  แถวที่ {log.row}: <span className="font-semibold">{displayLogStatus(log.status)}</span>
+                  {log.scrape_status ? ` · ดึงข้อมูล:${displayFetchStatus(log.scrape_status)}` : ""}
+                  {log.insert_status ? ` · insert:${log.insert_status}` : ""}
+                  {log.model_match_status ? ` · model:${log.model_match_status}` : ""}
+                  {log.original_url ? ` · ${log.original_url}` : ""} · {log.message}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {summary.inserted > 0 && (
+            <Link
+              href="/admin/pending"
+              className="mt-5 block w-full rounded-full bg-primary py-3 text-center text-sm font-semibold text-on-primary transition-transform hover:scale-[1.01] active:scale-95"
+            >
+              ตรวจ Pending →
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

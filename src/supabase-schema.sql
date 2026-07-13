@@ -104,6 +104,47 @@ create trigger admin_users_updated_at
 
 
 -- =============================================================
+-- 1.2 PHONE_MODEL_MASTER
+-- =============================================================
+
+create table if not exists phone_model_master (
+  id                  uuid primary key default gen_random_uuid(),
+  brand               text not null,
+  model_name          text not null unique,
+  model_slug          text not null unique,
+  aliases             text[] not null default '{}',
+  lens_compatible     boolean not null default false,
+  default_lens_detail text,
+  active              boolean not null default true,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create trigger phone_model_master_updated_at
+  before update on phone_model_master
+  for each row execute procedure update_updated_at();
+
+insert into phone_model_master (brand, model_name, model_slug, aliases, lens_compatible, default_lens_detail)
+values
+  ('Samsung', 'Samsung S22 Ultra', 'samsung-s22-ultra', array['s22 ultra','s22ultra','samsung s22','galaxy s22 ultra'], false, null),
+  ('Samsung', 'Samsung S23 Ultra', 'samsung-s23-ultra', array['s23 ultra','s23ultra','samsung s23','galaxy s23 ultra'], false, null),
+  ('Samsung', 'Samsung S24 Ultra', 'samsung-s24-ultra', array['s24 ultra','s24ultra','samsung s24','galaxy s24 ultra'], false, null),
+  ('Samsung', 'Samsung S25 Ultra', 'samsung-s25-ultra', array['s25 ultra','s25ultra','samsung s25','galaxy s25 ultra'], false, null),
+  ('Samsung', 'Samsung S26 Ultra', 'samsung-s26-ultra', array['s26 ultra','s26ultra','samsung s26','galaxy s26 ultra'], false, null),
+  ('Vivo', 'Vivo X200 Pro', 'vivo-x200-pro', array['vivo x200 pro','vivox200pro','x200 pro','x200pro'], false, null),
+  ('Vivo', 'Vivo X200 Ultra', 'vivo-x200-ultra', array['vivo x200 ultra','vivox200ultra','x200 ultra','x200ultra'], false, null),
+  ('Vivo', 'Vivo X200 Ultra + Lens 200mm', 'vivo-x200-ultra-lens-200mm', array['vivo x200 ultra lens','vivox200ultralens','x200 ultra lens','x200ultra 200mm'], true, '200mm'),
+  ('Vivo', 'Vivo X300 Pro', 'vivo-x300-pro', array['vivo x300 pro','vivox300pro','x300 pro','x300pro'], false, null),
+  ('Vivo', 'Vivo X300 Pro + Lens 200mm', 'vivo-x300-pro-lens-200mm', array['vivo x300 pro lens','vivox300prolens','x300 pro lens','x300pro 200mm'], true, '200mm'),
+  ('Vivo', 'Vivo X300 Ultra', 'vivo-x300-ultra', array['vivo x300 ultra','vivox300ultra','x300 ultra','x300ultra'], false, null),
+  ('Vivo', 'Vivo X300 Ultra + Lens 400mm', 'vivo-x300-ultra-lens-400mm', array['vivo x300 ultra lens','vivox300ultralens','x300 ultra lens','x300ultra 400mm'], true, '400mm'),
+  ('Oppo', 'Oppo Find X9 Pro + Lens 200mm', 'oppo-find-x9-pro-lens-200mm', array['oppo find x9 pro lens','findx9pro lens','oppo x9pro lens','x9pro 200mm'], true, '200mm'),
+  ('Oppo', 'Oppo Find X9 Ultra', 'oppo-find-x9-ultra', array['oppo find x9 ultra','findx9ultra','oppo x9ultra'], false, null),
+  ('Oppo', 'Oppo Find X9 Ultra + Lens 300mm', 'oppo-find-x9-ultra-lens-300mm', array['oppo find x9 ultra lens','findx9ultra lens','oppo x9ultra lens','x9ultra 300mm'], true, '300mm')
+on conflict (model_name) do nothing;
+
+
+-- =============================================================
 -- 2. POST_MEDIA
 -- =============================================================
 
@@ -159,6 +200,7 @@ alter table posts       enable row level security;
 alter table post_media  enable row level security;
 alter table scrape_jobs enable row level security;
 alter table admin_users enable row level security;
+alter table phone_model_master enable row level security;
 
 -- Public: anyone can read approved posts and their media
 create policy "Public can read approved posts"

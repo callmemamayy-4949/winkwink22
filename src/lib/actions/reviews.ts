@@ -509,7 +509,7 @@ function toNewPostRow(row: ImportRow) {
   };
 }
 
-const MAX_IMPORT_ROWS = 40;
+const MAX_IMPORT_ROWS = 200;
 
 export async function importReviews(rows: ImportRow[]): Promise<ImportSummary> {
   await requireAdminSession();

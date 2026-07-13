@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { ReviewImage } from "@/components/reviews/ReviewImage";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
-import { buildReviewSummary, cleanReviewTextForSummary } from "@/lib/utils/parse-review";
+import { buildReviewSummary, cleanReviewTextForSummary } from "@/lib/utils/review-summary";
 
 const LINE_BOOKING_URL = "https://line.me/R/ti/p/@777orbcb?oat_content=url&ts=10181227";
 

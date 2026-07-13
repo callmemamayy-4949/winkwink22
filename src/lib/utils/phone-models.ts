@@ -1,5 +1,6 @@
 import type { ImportRow, LensStatus, ModelMatchStatus } from "@/types/review";
 import { slugify } from "@/lib/utils/slugify";
+import { buildReviewSummary } from "@/lib/utils/review-summary";
 
 export interface PhoneModelMaster {
   brand: "Samsung" | "Vivo" | "Oppo";
@@ -192,6 +193,11 @@ export function normalizeImportRowPhoneFields(row: ImportRow): ImportRow {
     phoneSlug: row.phone_slug,
     texts: [row.model_hint, row.import_note, row.caption, row.summary_th, row.post_text],
   });
+  const summary = row.post_text
+    ? buildReviewSummary(row.post_text, normalized.phone_brand, normalized.phone_model)
+    : null;
+  const postedYear = row.posted_at ? new Date(row.posted_at).getFullYear() : null;
+  const year = Number.isFinite(postedYear) ? postedYear : row.year ?? null;
 
   return {
     ...row,
@@ -201,5 +207,7 @@ export function normalizeImportRowPhoneFields(row: ImportRow): ImportRow {
     lens_status: normalized.lens_status,
     suggested_model: normalized.suggested_model ?? row.suggested_model ?? null,
     model_match_status: normalized.model_match_status,
+    year,
+    summary_th: summary ?? row.summary_th ?? null,
   };
 }

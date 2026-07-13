@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PLATFORM_LABELS, LENS_LABELS_TH, SOURCE_LABELS_TH, type ReviewWithMedia } from "@/types/review";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
 import { updatePost, type PostPatch } from "@/lib/actions/reviews";
+import { PHONE_MODEL_MASTER_LIST } from "@/lib/utils/phone-models";
 
 type Action = "approved" | "hidden" | "duplicate";
 
@@ -22,10 +23,12 @@ const ACTION_LABELS: Record<Action, string> = {
 function PendingCard({
   review,
   onAction,
+  onSave,
   busy,
 }: {
   review: ReviewWithMedia;
   onAction: (id: string, action: Action, patch: PostPatch) => void;
+  onSave: (id: string, patch: PostPatch) => void;
   busy: boolean;
 }) {
   const [form, setForm] = useState({
@@ -47,6 +50,30 @@ function PendingCard({
   });
 
   const cover = review.media[0];
+  const brands = [...new Set(PHONE_MODEL_MASTER_LIST.map((model) => model.brand))];
+  const models = PHONE_MODEL_MASTER_LIST.filter((model) => !form.phone_brand || model.brand === form.phone_brand);
+  const years = [2026, 2025, 2024, 2023, 2022, 2021];
+  const videoQualities = ["", "720P", "1080P", "2160P", "4K", "4K 60FPS"];
+
+  function patchFromForm(): PostPatch {
+    return {
+      ...form,
+      year: form.year ? Number(form.year) : null,
+      hashtags: form.hashtags.split(",").map((h) => h.trim()).filter(Boolean),
+    };
+  }
+
+  function selectModel(modelName: string) {
+    const model = PHONE_MODEL_MASTER_LIST.find((m) => m.model === modelName);
+    setForm((f) => ({
+      ...f,
+      phone_brand: model?.brand ?? f.phone_brand,
+      phone_model: model?.model ?? "",
+      phone_slug: model?.slug ?? "",
+      lens_status: model?.hasLens ? "with_lens" : f.lens_status,
+      model_match_status: model ? "canonical" : f.model_match_status,
+    }));
+  }
 
   return (
     <div className="overflow-hidden rounded-card bg-white shadow-card">
@@ -90,7 +117,7 @@ function PendingCard({
             rel="noopener noreferrer"
             className="mt-1 inline-block text-xs font-semibold text-primary underline-offset-2 hover:underline"
           >
-            ดูโพสต์ต้นฉบับ ↗
+            ดูต้นฉบับ ↗
           </a>
         </div>
       </div>
@@ -99,20 +126,40 @@ function PendingCard({
       <div className="border-t border-outline/10 p-4">
         <p className="mb-3 text-xs font-semibold text-label">แก้ไขข้อมูล</p>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <div>
+            <label className="mb-0.5 block text-[10px] font-semibold text-label">แบรนด์</label>
+            <select
+              value={form.phone_brand}
+              onChange={(e) => setForm((f) => ({ ...f, phone_brand: e.target.value, phone_model: "", phone_slug: "" }))}
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="">ไม่ระบุ</option>
+              {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-0.5 block text-[10px] font-semibold text-label">รุ่นมือถือ</label>
+            <select
+              value={form.phone_model}
+              onChange={(e) => selectModel(e.target.value)}
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="">ไม่ระบุ</option>
+              {models.map((model) => <option key={model.slug} value={model.model}>{model.model}</option>)}
+            </select>
+            {form.suggested_model && <p className="mt-1 text-[10px] text-pastel-yellow-text">แนะนำ: {form.suggested_model}</p>}
+          </div>
+
           {(
             [
-              ["phone_brand",        "แบรนด์"],
-              ["phone_model",        "รุ่นมือถือ"],
-              ["phone_slug",         "phone_slug"],
-              ["model_hint",         "model hint"],
-              ["suggested_model",    "รุ่นที่ระบบสงสัย"],
-              ["model_match_status", "model match"],
-              ["place",              "สถานที่"],
-              ["place_slug",         "place_slug"],
-              ["video_quality",      "คุณภาพวิดีโอ"],
-              ["year",               "ปี"],
-              ["hashtags",           "แฮชแท็ก (คั่ง ,)"],
-              ["summary_th",         "สรุปภาษาไทย"],
+              ["phone_slug", "phone_slug"],
+              ["model_hint", "model hint"],
+              ["suggested_model", "รุ่นที่ระบบสงสัย"],
+              ["place", "สถานที่"],
+              ["place_slug", "place_slug"],
+              ["hashtags", "แฮชแท็ก (คั่น ,)"],
+              ["summary_th", "สรุปภาษาไทย"],
             ] as const
           ).map(([key, label]) => (
             <div key={key} className={key === "summary_th" || key === "hashtags" ? "col-span-2 sm:col-span-3" : ""}>
@@ -120,19 +167,53 @@ function PendingCard({
               <input
                 value={form[key]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                className="w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           ))}
+
+          <div>
+            <label className="mb-0.5 block text-[10px] font-semibold text-label">model match</label>
+            <select
+              value={form.model_match_status}
+              onChange={(e) => setForm((f) => ({ ...f, model_match_status: e.target.value as typeof form.model_match_status }))}
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {["canonical", "suggested", "unknown"].map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </div>
 
           <div>
             <label className="mb-0.5 block text-[10px] font-semibold text-label">เลนส์</label>
             <select
               value={form.lens_status}
               onChange={(e) => setForm((f) => ({ ...f, lens_status: e.target.value as typeof form.lens_status }))}
-              className="w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
             >
               {Object.entries(LENS_LABELS_TH).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-0.5 block text-[10px] font-semibold text-label">ปี ค.ศ.</label>
+            <select
+              value={form.year}
+              onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))}
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="">ไม่ระบุ</option>
+              {years.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-0.5 block text-[10px] font-semibold text-label">คุณภาพวิดีโอ</label>
+            <select
+              value={form.video_quality}
+              onChange={(e) => setForm((f) => ({ ...f, video_quality: e.target.value }))}
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {videoQualities.map((value) => <option key={value || "empty"} value={value}>{value || "ไม่ระบุ"}</option>)}
             </select>
           </div>
 
@@ -141,7 +222,7 @@ function PendingCard({
             <select
               value={form.platform}
               onChange={(e) => setForm((f) => ({ ...f, platform: e.target.value as typeof form.platform }))}
-              className="w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
             >
               {Object.entries(PLATFORM_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
@@ -152,7 +233,7 @@ function PendingCard({
             <select
               value={form.review_source_type}
               onChange={(e) => setForm((f) => ({ ...f, review_source_type: e.target.value as typeof form.review_source_type }))}
-              className="w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+              className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
             >
               {Object.entries(SOURCE_LABELS_TH).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
@@ -161,17 +242,18 @@ function PendingCard({
 
         {/* Action buttons */}
         <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            disabled={busy}
+            onClick={() => onSave(review.id, patchFromForm())}
+            className="flex-1 rounded-full border border-primary/20 bg-primary-container px-4 py-2 text-sm font-semibold text-primary transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            บันทึกข้อมูล
+          </button>
           {(["approved", "hidden", "duplicate"] as const).map((action) => (
             <button
               key={action}
               disabled={busy}
-              onClick={() =>
-                onAction(review.id, action, {
-                  ...form,
-                  year: form.year ? Number(form.year) : null,
-                  hashtags: form.hashtags.split(",").map((h) => h.trim()).filter(Boolean),
-                })
-              }
+              onClick={() => onAction(review.id, action, patchFromForm())}
               className={`flex-1 rounded-full border px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${ACTION_STYLES[action]}`}
             >
               {ACTION_LABELS[action]}
@@ -213,6 +295,20 @@ export function PendingList({ initialReviews }: { initialReviews: ReviewWithMedi
     showToast(labels[action]);
   }
 
+  async function handleSave(id: string, patch: PostPatch) {
+    setBusyId(id);
+    const result = await updatePost(id, patch);
+    setBusyId(null);
+
+    if (!result.ok) {
+      showToast(`บันทึกไม่สำเร็จ: ${result.error}`);
+      return;
+    }
+
+    setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } as ReviewWithMedia : r)));
+    showToast("บันทึกข้อมูลแล้ว");
+  }
+
   return (
     <>
       {toast && (
@@ -230,7 +326,7 @@ export function PendingList({ initialReviews }: { initialReviews: ReviewWithMedi
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {reviews.map((r) => (
-            <PendingCard key={r.id} review={r} onAction={handleAction} busy={busyId === r.id} />
+            <PendingCard key={r.id} review={r} onAction={handleAction} onSave={handleSave} busy={busyId === r.id} />
           ))}
         </div>
       )}

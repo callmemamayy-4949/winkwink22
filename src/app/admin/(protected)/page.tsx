@@ -46,7 +46,7 @@ export default async function AdminDashboard() {
   const QUICK_LINKS = [
     { href: "/admin/pending",    icon: "⏳", label: "ตรวจรีวิวรอดำเนินการ",   desc: "อนุมัติ ซ่อน หรือมาร์คซ้ำ" },
     { href: "/admin/import",     icon: "📥", label: "นำเข้าไฟล์รีวิว",          desc: "อัปโหลด CSV/JSON แล้วส่งเข้าคิวตรวจ" },
-    { href: "/admin/manual-add", icon: "➕", label: "เพิ่มรีวิวด้วยตัวเอง",     desc: "วางลิงก์ X หรือ TikTok แล้วกรอกข้อมูล" },
+    { href: "/admin/manual-add", icon: "➕", label: "เพิ่มรีวิวจากลิงก์",       desc: "วางลิงก์ X / TikTok" },
     { href: "/admin/scrape",     icon: "📘", label: "วิธีใช้ Winkwink Admin",    desc: "ลำดับการเพิ่ม ตรวจ และเผยแพร่รีวิว" },
     { href: "/reviews",          icon: "👁️", label: "ดูหน้า Public Gallery",     desc: "ดูเว็บในมุมมองลูกค้า" },
   ];
