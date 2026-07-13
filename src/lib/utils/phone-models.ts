@@ -78,7 +78,8 @@ function detectKnownModel(text: string, wantsLens: boolean, noLens: boolean): Ph
 
   for (const year of ["22", "23", "24", "25", "26"]) {
     if (compact.includes(`samsungs${year}ultra`) || compact.includes(`galaxys${year}ultra`) || compact.includes(`s${year}ultra`) || compact.includes(`samsungs${year}`)) {
-      return pickByLens(`Samsung S${year} Ultra`, wantsLens, noLens);
+      const match = pickByLens(`Samsung S${year} Ultra`, wantsLens, noLens);
+      if (match) return match;
     }
   }
 
@@ -89,7 +90,8 @@ function detectKnownModel(text: string, wantsLens: boolean, noLens: boolean): Ph
         compact.includes(`vivo${series}${tier}`) ||
         compact.includes(`x${series}${tier}`)
       ) {
-        return pickByLens(`Vivo X${series} ${tier === "pro" ? "Pro" : "Ultra"}`, wantsLens, noLens);
+        const match = pickByLens(`Vivo X${series} ${tier === "pro" ? "Pro" : "Ultra"}`, wantsLens, noLens);
+        if (match) return match;
       }
     }
   }
@@ -100,7 +102,8 @@ function detectKnownModel(text: string, wantsLens: boolean, noLens: boolean): Ph
       compact.includes(`findx9${tier}`) ||
       compact.includes(`oppox9${tier}`)
     ) {
-      return pickByLens(`Oppo Find X9 ${tier === "pro" ? "Pro" : "Ultra"}`, wantsLens, noLens);
+      const match = pickByLens(`Oppo Find X9 ${tier === "pro" ? "Pro" : "Ultra"}`, wantsLens, noLens);
+      if (match) return match;
     }
   }
 
