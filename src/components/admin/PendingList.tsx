@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { PLATFORM_LABELS, LENS_LABELS_TH, SOURCE_LABELS_TH, type ReviewWithMedia } from "@/types/review";
+import { PLATFORM_LABELS, LENS_LABELS_TH, SOURCE_LABELS_TH, type PhoneModelOption, type ReviewWithMedia } from "@/types/review";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
 import { updatePost, type PostPatch } from "@/lib/actions/reviews";
-import { PHONE_MODEL_MASTER_LIST } from "@/lib/utils/phone-models";
 
 type Action = "approved" | "hidden" | "duplicate";
 
@@ -25,11 +24,13 @@ function PendingCard({
   onAction,
   onSave,
   busy,
+  phoneModels,
 }: {
   review: ReviewWithMedia;
   onAction: (id: string, action: Action, patch: PostPatch) => void;
   onSave: (id: string, patch: PostPatch) => void;
   busy: boolean;
+  phoneModels: PhoneModelOption[];
 }) {
   const [form, setForm] = useState({
     phone_brand:        review.phone_brand ?? "",
@@ -48,10 +49,22 @@ function PendingCard({
     review_source_type: review.review_source_type,
     summary_th:         review.summary_th ?? "",
   });
+  const [modelSearch, setModelSearch] = useState("");
 
   const cover = review.media[0];
-  const brands = [...new Set(PHONE_MODEL_MASTER_LIST.map((model) => model.brand))];
-  const models = PHONE_MODEL_MASTER_LIST.filter((model) => !form.phone_brand || model.brand === form.phone_brand);
+  const brands = [...new Set(phoneModels.map((model) => model.brand))].sort((a, b) => a.localeCompare(b));
+  const currentMasterModel = phoneModels.find(
+    (model) => model.model_slug === form.phone_slug || model.model_name === form.phone_model
+  );
+  const currentMissingFromMaster = Boolean(form.phone_model && !currentMasterModel);
+  const search = modelSearch.trim().toLowerCase();
+  const models = phoneModels
+    .filter((model) => !form.phone_brand || model.brand === form.phone_brand)
+    .filter((model) => {
+      if (!search) return true;
+      const haystack = [model.model_name, model.model_slug, ...model.aliases].join(" ").toLowerCase();
+      return haystack.includes(search);
+    });
   const years = [2026, 2025, 2024, 2023, 2022, 2021];
   const videoQualities = ["", "720P", "1080P", "2160P", "4K", "4K 60FPS"];
 
@@ -63,15 +76,20 @@ function PendingCard({
     };
   }
 
-  function selectModel(modelName: string) {
-    const model = PHONE_MODEL_MASTER_LIST.find((m) => m.model === modelName);
+  function selectModel(modelSlug: string) {
+    if (!modelSlug) {
+      setForm((f) => ({ ...f, phone_model: "", phone_slug: "" }));
+      return;
+    }
+    const model = phoneModels.find((m) => m.model_slug === modelSlug);
+    if (!model) return;
     setForm((f) => ({
       ...f,
-      phone_brand: model?.brand ?? f.phone_brand,
-      phone_model: model?.model ?? "",
-      phone_slug: model?.slug ?? "",
-      lens_status: model?.hasLens ? "with_lens" : f.lens_status,
-      model_match_status: model ? "canonical" : f.model_match_status,
+      phone_brand: model.brand,
+      phone_model: model.model_name,
+      phone_slug: model.model_slug,
+      lens_status: model.lens_compatible ? "with_lens" : f.lens_status,
+      model_match_status: "canonical",
     }));
   }
 
@@ -140,14 +158,26 @@ function PendingCard({
 
           <div>
             <label className="mb-0.5 block text-[10px] font-semibold text-label">รุ่นมือถือ</label>
+            <input
+              value={modelSearch}
+              onChange={(e) => setModelSearch(e.target.value)}
+              placeholder="ค้นหารุ่น"
+              className="mb-1 min-h-10 w-full rounded-control border border-outline/30 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            />
             <select
-              value={form.phone_model}
+              value={currentMasterModel?.model_slug ?? (currentMissingFromMaster ? "__current" : "")}
               onChange={(e) => selectModel(e.target.value)}
               className="min-h-11 w-full rounded-control border border-outline/30 bg-surface-cream px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="">ไม่ระบุ</option>
-              {models.map((model) => <option key={model.slug} value={model.model}>{model.model}</option>)}
+              {currentMissingFromMaster && <option value="__current">{form.phone_model} (ไม่อยู่ใน Master)</option>}
+              {models.map((model) => <option key={model.id} value={model.model_slug}>{model.model_name}</option>)}
             </select>
+            {currentMissingFromMaster && (
+              <p className="mt-1 inline-flex rounded-full bg-pastel-yellow/70 px-2 py-0.5 text-[10px] font-semibold text-pastel-yellow-text">
+                ไม่อยู่ใน Master
+              </p>
+            )}
             {form.suggested_model && <p className="mt-1 text-[10px] text-pastel-yellow-text">แนะนำ: {form.suggested_model}</p>}
           </div>
 
@@ -265,7 +295,17 @@ function PendingCard({
   );
 }
 
-export function PendingList({ initialReviews }: { initialReviews: ReviewWithMedia[] }) {
+export function PendingList({
+  initialReviews,
+  phoneModels,
+  masterSource,
+  masterWarning,
+}: {
+  initialReviews: ReviewWithMedia[];
+  phoneModels: PhoneModelOption[];
+  masterSource: "database" | "fallback";
+  masterWarning: string | null;
+}) {
   const [reviews, setReviews] = useState(initialReviews);
   const [toast, setToast]     = useState<string | null>(null);
   const [busyId, setBusyId]   = useState<string | null>(null);
@@ -317,6 +357,12 @@ export function PendingList({ initialReviews }: { initialReviews: ReviewWithMedi
         </div>
       )}
 
+      {masterSource === "fallback" && (
+        <div className="mb-4 rounded-card border border-pastel-yellow bg-pastel-yellow/45 px-4 py-3 text-sm font-medium text-pastel-yellow-text">
+          {masterWarning ?? "ไม่สามารถโหลดรายการรุ่นจากฐานข้อมูลได้ ขณะนี้กำลังใช้รายการสำรอง"}
+        </div>
+      )}
+
       {reviews.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-outline/40 bg-white/60 py-20 text-center">
           <span className="text-4xl">🎉</span>
@@ -326,7 +372,14 @@ export function PendingList({ initialReviews }: { initialReviews: ReviewWithMedi
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {reviews.map((r) => (
-            <PendingCard key={r.id} review={r} onAction={handleAction} onSave={handleSave} busy={busyId === r.id} />
+            <PendingCard
+              key={r.id}
+              review={r}
+              onAction={handleAction}
+              onSave={handleSave}
+              busy={busyId === r.id}
+              phoneModels={phoneModels}
+            />
           ))}
         </div>
       )}

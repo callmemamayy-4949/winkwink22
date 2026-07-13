@@ -136,18 +136,27 @@ function sanitizePatch(patch: PostPatch): Record<string, unknown> {
 
   const hasPhonePatch = "phone_brand" in patch || "phone_model" in patch || "phone_slug" in patch;
   if (hasPhonePatch) {
-    const phone = normalizePhoneModel({
-      phoneBrand: patch.phone_brand,
-      phoneModel: patch.phone_model,
-      phoneSlug: patch.phone_slug,
-      texts: [patch.summary_th],
-    });
-    out.phone_brand = phone.phone_brand;
-    out.phone_model = phone.phone_model;
-    out.phone_slug = phone.phone_slug;
-    out.suggested_model = patch.suggested_model || phone.suggested_model || null;
-    out.model_match_status = phone.model_match_status;
-    if (phone.lens_status !== "unknown") out.lens_status = phone.lens_status;
+    if (patch.model_match_status === "canonical" && patch.phone_model && patch.phone_slug) {
+      out.phone_brand = patch.phone_brand || null;
+      out.phone_model = patch.phone_model;
+      out.phone_slug = patch.phone_slug;
+      out.suggested_model = patch.suggested_model || null;
+      out.model_match_status = "canonical";
+      if (patch.phone_model.includes("+ Lens")) out.lens_status = "with_lens";
+    } else {
+      const phone = normalizePhoneModel({
+        phoneBrand: patch.phone_brand,
+        phoneModel: patch.phone_model,
+        phoneSlug: patch.phone_slug,
+        texts: [patch.summary_th],
+      });
+      out.phone_brand = phone.phone_brand;
+      out.phone_model = phone.phone_model;
+      out.phone_slug = phone.phone_slug;
+      out.suggested_model = patch.suggested_model || phone.suggested_model || null;
+      out.model_match_status = phone.model_match_status;
+      if (phone.lens_status !== "unknown") out.lens_status = phone.lens_status;
+    }
   } else if ("suggested_model" in patch) {
     out.suggested_model = patch.suggested_model || null;
   }

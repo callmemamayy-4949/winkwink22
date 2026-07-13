@@ -83,6 +83,17 @@ export interface ReviewWithMedia extends Post {
   media: PostMedia[];
 }
 
+/** Canonical phone model rows from `phone_model_master`. */
+export interface PhoneModelOption {
+  id: string;
+  brand: string;
+  model_name: string;
+  model_slug: string;
+  aliases: string[];
+  lens_compatible: boolean;
+  default_lens_detail: string | null;
+}
+
 /**
  * Row shape produced by `scripts/scrape-x.ts` (JSON/CSV export) and accepted
  * by the /admin/import upload flow. `status` is always forced to "pending"
