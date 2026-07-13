@@ -173,12 +173,8 @@ function sortReviews(reviews: ReviewWithMedia[], sort: SortOption = "newest") {
   switch (sort) {
     case "oldest":
       return sorted.sort((a, b) => byDate(a, b, 1));
-    case "most_retweets":
-      return sorted.sort((a, b) => b.retweet_count - a.retweet_count);
-    case "most_likes":
+    case "likes":
       return sorted.sort((a, b) => b.like_count - a.like_count);
-    case "most_views":
-      return sorted.sort((a, b) => b.view_count - a.view_count);
     case "newest":
     default:
       return sorted.sort((a, b) => byDate(a, b, -1));

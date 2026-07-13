@@ -13,9 +13,7 @@ export type MediaType = "image" | "video" | "thumbnail";
 export type SortOption =
   | "newest"
   | "oldest"
-  | "most_retweets"
-  | "most_likes"
-  | "most_views";
+  | "likes";
 
 /** Mirrors the `posts` table in Supabase. */
 export interface Post {
@@ -147,9 +145,7 @@ export interface ReviewFilters {
 export const SORT_LABELS_TH: Record<SortOption, string> = {
   newest: "ล่าสุด",
   oldest: "เก่าสุด",
-  most_retweets: "รีโพสต์สูงสุด",
-  most_likes: "ถูกใจสูงสุด",
-  most_views: "ยอดเข้าชมสูงสุด",
+  likes: "ถูกใจสูงสุด",
 };
 
 export const LENS_LABELS_TH: Record<LensStatus, string> = {

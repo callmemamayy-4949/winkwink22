@@ -16,9 +16,7 @@ import {
 const SORT_OPTIONS: SortOption[] = [
   "newest",
   "oldest",
-  "most_retweets",
-  "most_likes",
-  "most_views",
+  "likes",
 ];
 
 export function ReviewsControls({
@@ -141,7 +139,7 @@ export function ReviewsControls({
             <button
               type="button"
               onClick={() => updateFilter("q", undefined)}
-              className="flex items-center gap-1 rounded-full bg-primary-container/70 px-3 py-1.5 text-xs font-medium text-on-primary-container transition-transform hover:scale-[1.03] active:scale-95"
+              className="flex min-h-11 touch-manipulation items-center gap-1 rounded-full bg-primary-container/70 px-3.5 py-2 text-xs font-medium text-on-primary-container transition-transform hover:scale-[1.03] active:scale-95"
             >
               &ldquo;{filters.q}&rdquo;
               <span className="text-primary">×</span>
@@ -152,7 +150,7 @@ export function ReviewsControls({
               key={`${chip.key}-${chip.value}`}
               type="button"
               onClick={() => removeChip(chip.key, chip.value)}
-              className="flex items-center gap-1 rounded-full bg-primary-container/70 px-3 py-1.5 text-xs font-medium text-on-primary-container transition-transform hover:scale-[1.03] active:scale-95"
+              className="flex min-h-11 touch-manipulation items-center gap-1 rounded-full bg-primary-container/70 px-3.5 py-2 text-xs font-medium text-on-primary-container transition-transform hover:scale-[1.03] active:scale-95"
             >
               {chip.label}
               <span className="text-primary">×</span>
@@ -161,7 +159,7 @@ export function ReviewsControls({
           <button
             type="button"
             onClick={() => navigate({ sort: filters.sort })}
-            className="ml-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            className="ml-1 min-h-11 touch-manipulation rounded-full px-3 py-2 text-xs font-semibold text-primary underline-offset-2 hover:bg-surface-container-low hover:underline active:bg-primary-container/70"
           >
             ล้างตัวกรองทั้งหมด
           </button>
@@ -177,7 +175,7 @@ export function ReviewsControls({
               key={option}
               type="button"
               onClick={() => updateFilter("sort", option)}
-              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all hover:scale-[1.03] active:scale-95 ${
+              className={`min-h-11 touch-manipulation rounded-full px-4 py-2 text-sm font-medium transition-all hover:scale-[1.03] active:scale-95 ${
                 active
                   ? "bg-gradient-primary text-on-primary shadow-sm"
                   : "bg-white/70 text-label hover:text-text"

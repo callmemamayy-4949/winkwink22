@@ -24,6 +24,13 @@ function splitParam(value: string | string[] | undefined): string[] | undefined 
   return parts.length ? parts : undefined;
 }
 
+function parseSort(value: string | string[] | undefined): SortOption | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === "newest" || raw === "oldest" || raw === "likes") return raw;
+  if (raw === "most_likes") return "likes";
+  return undefined;
+}
+
 /** Parses a Next.js `searchParams` object into typed, structured filters. */
 export function parseReviewFilters(params: SearchParamsInput): ReviewFilters {
   const filters: ReviewFilters = {};
@@ -36,8 +43,8 @@ export function parseReviewFilters(params: SearchParamsInput): ReviewFilters {
     if (values) (filters as Record<string, string[]>)[key] = values;
   }
 
-  const sort = params.sort;
-  if (typeof sort === "string") filters.sort = sort as SortOption;
+  const sort = parseSort(params.sort);
+  if (sort) filters.sort = sort;
 
   return filters;
 }

@@ -71,9 +71,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
     platformLabel,
   ].filter((value, index, all): value is string => !!value && all.indexOf(value) === index);
   const stats = [
-    { label: "รีโพสต์", value: review.retweet_count },
     { label: "ถูกใจ", value: review.like_count },
-    { label: "เข้าชม", value: review.view_count },
   ].filter((s) => s.value > 0);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export interface DropdownOption {
   value: string;
@@ -23,6 +23,7 @@ export function MultiSelectDropdown({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
 
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
@@ -49,7 +50,7 @@ export function MultiSelectDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-[1.02] active:scale-95 ${
+        className={`flex min-h-11 touch-manipulation items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all hover:scale-[1.02] active:scale-95 ${
           selected.length
             ? "border-primary/30 bg-primary-container/60 text-on-primary-container"
             : "border-white/70 bg-white/80 text-text backdrop-blur"
@@ -83,30 +84,41 @@ export function MultiSelectDropdown({
               className="mb-2 w-full rounded-control bg-surface-cream px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           )}
-          <div className="max-h-56 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto">
             {filteredOptions.length === 0 && (
               <p className="px-2 py-3 text-center text-sm text-label">ไม่พบตัวเลือก</p>
             )}
-            {filteredOptions.map((o) => (
-              <label
-                key={o.value}
-                className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-surface-container-low"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.includes(o.value)}
-                  onChange={() => toggle(o.value)}
-                  className="h-4 w-4 accent-primary"
-                />
-                <span className="truncate">{o.label}</span>
-              </label>
-            ))}
+            {filteredOptions.map((o, index) => {
+              const checked = selected.includes(o.value);
+              const optionId = `${listId}-${index}`;
+
+              return (
+                <label
+                  key={o.value}
+                  htmlFor={optionId}
+                  className={`flex min-h-11 w-full cursor-pointer touch-manipulation select-none items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-colors active:bg-primary-container/80 ${
+                    checked
+                      ? "bg-primary-container/70 font-semibold text-on-primary-container ring-1 ring-primary/20"
+                      : "text-text hover:bg-surface-container-low"
+                  }`}
+                >
+                  <input
+                    id={optionId}
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(o.value)}
+                    className="h-5 w-5 shrink-0 accent-primary"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                </label>
+              );
+            })}
           </div>
           {selected.length > 0 && (
             <button
               type="button"
               onClick={() => onChange([])}
-              className="mt-1 w-full rounded-control px-2 py-1.5 text-center text-xs font-semibold text-primary hover:bg-surface-container-low"
+              className="mt-2 min-h-11 w-full touch-manipulation rounded-xl px-3 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-surface-container-low active:bg-primary-container/70"
             >
               ล้างตัวเลือก
             </button>
