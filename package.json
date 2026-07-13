@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:phone-models": "tsx scripts/test-phone-models.ts",
     "scrape:x": "tsx scripts/scrape-x.ts",
     "scrape:x:install": "playwright install chromium",
     "links:csv": "tsx scripts/links-to-csv.ts"
