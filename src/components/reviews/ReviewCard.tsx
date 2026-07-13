@@ -15,6 +15,18 @@ function compactKey(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9ก-๙]+/g, "");
 }
 
+function hasThaiText(value: string): boolean {
+  return /[ก-๙]/u.test(value);
+}
+
+function isPlaceholderSummary(value: string): boolean {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, " ");
+  return (
+    /^[-–—_.•]+$/.test(normalized) ||
+    /^(?:my view|my video|my view[·.\-/ ]+my video|view|video)$/i.test(normalized)
+  );
+}
+
 function displayModelTitle(review: ReviewWithMedia): string {
   const brand = review.phone_brand?.trim() ?? "";
   const model = review.phone_model?.trim() ?? "";
@@ -25,6 +37,7 @@ function displayModelTitle(review: ReviewWithMedia): string {
 
 function isUsableSummary(value: string, title: string): boolean {
   const compact = compactKey(value);
+  if (!hasThaiText(value) || isPlaceholderSummary(value)) return false;
   if (!compact || compact.length < 3) return false;
   return !compactKey(title).includes(compact) && !compact.includes(compactKey(title));
 }
@@ -42,6 +55,7 @@ function displaySummary(review: ReviewWithMedia, title: string): string | null {
 
   if (!raw || rawKey.includes(titleKey) || raw.startsWith("รีวิว")) return null;
   if (!cleanedRaw || compactKey(cleanedRaw).includes(titleKey)) return null;
+  if (!hasThaiText(cleanedRaw) || isPlaceholderSummary(cleanedRaw)) return null;
   return cleanedRaw;
 }
 
