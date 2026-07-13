@@ -12,7 +12,7 @@ export function ReviewGrid({ reviews }: { reviews: ReviewWithMedia[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+    <div className="relative z-0 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
       {reviews.map((review) => (
         <ReviewCard key={review.id} review={review} />
       ))}

@@ -63,7 +63,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
   const likeText = review.like_count > 0 ? `${formatCompactNumber(review.like_count)} ถูกใจ` : null;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/90 shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
+    <article className="group relative z-0 flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/90 shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-t-card bg-surface-container sm:h-80 sm:aspect-auto">
         <div className="h-full w-full transition-transform duration-500 group-hover:scale-105">
           <ReviewImage src={cover?.thumbnail_url ?? cover?.media_url ?? null} alt={summary} />

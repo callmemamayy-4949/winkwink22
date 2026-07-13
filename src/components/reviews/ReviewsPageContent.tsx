@@ -29,11 +29,13 @@ export async function ReviewsPageContent({
         <Hero title={title} subtitle={subtitle} />
       </div>
 
-      <ReviewsControls
-        facets={facets}
-        filters={filters}
-        lockModel={Boolean(phoneSlug)}
-      />
+      <section className="relative z-40 overflow-visible">
+        <ReviewsControls
+          facets={facets}
+          filters={filters}
+          lockModel={Boolean(phoneSlug)}
+        />
+      </section>
 
       <div className="mb-3 mt-4 flex items-center justify-between sm:mb-4 sm:mt-6">
         <p className="font-display text-sm font-medium text-text-strong">
@@ -41,7 +43,9 @@ export async function ReviewsPageContent({
         </p>
       </div>
 
-      <ReviewGrid reviews={reviews} />
+      <section className="relative z-0">
+        <ReviewGrid reviews={reviews} />
+      </section>
     </div>
   );
 }

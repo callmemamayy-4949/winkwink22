@@ -191,7 +191,7 @@ export function ReviewsControls({
         </div>
       )}
 
-      <div className="hidden rounded-card border border-white/60 bg-white/70 p-4 shadow-card backdrop-blur-xl sm:block sm:p-6">
+      <div className="relative z-40 hidden overflow-visible rounded-card border border-white/60 bg-white/70 p-4 shadow-card backdrop-blur-xl sm:block sm:p-6">
         <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
 
         {hasAnyFilter && (
