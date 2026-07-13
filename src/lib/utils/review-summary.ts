@@ -79,5 +79,5 @@ function compactSummary(text: string): string | null {
 export function buildReviewSummary(text: string, brand: string | null = null, model: string | null = null): string | null {
   const compacted = compactSummary(cleanReviewTextForSummary(text, brand, model));
   if (!compacted) return null;
-  return compacted.length > 45 ? compacted.slice(0, 45).trim() : compacted;
+  return compacted;
 }

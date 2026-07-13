@@ -208,6 +208,6 @@ export function normalizeImportRowPhoneFields(row: ImportRow): ImportRow {
     suggested_model: normalized.suggested_model ?? row.suggested_model ?? null,
     model_match_status: normalized.model_match_status,
     year,
-    summary_th: summary ?? row.summary_th ?? null,
+    summary_th: row.summary_th ?? summary ?? null,
   };
 }

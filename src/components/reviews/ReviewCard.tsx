@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { ReviewImage } from "@/components/reviews/ReviewImage";
 import { formatCompactNumber, formatThaiDate } from "@/lib/utils/format";
-import { buildReviewSummary, cleanReviewTextForSummary } from "@/lib/utils/review-summary";
+import { cleanReviewTextForSummary } from "@/lib/utils/review-summary";
 
 const LINE_BOOKING_URL = "https://line.me/R/ti/p/@777orbcb?oat_content=url&ts=10181227";
 
@@ -23,22 +23,26 @@ function displayModelTitle(review: ReviewWithMedia): string {
   return [brand, model].filter(Boolean).join(" ");
 }
 
-function displaySummary(review: ReviewWithMedia, title: string): string {
-  const raw = (review.summary_th || review.post_text || "").trim();
+function isUsableSummary(value: string, title: string): boolean {
+  const compact = compactKey(value);
+  if (!compact || compact.length < 3) return false;
+  return !compactKey(title).includes(compact) && !compact.includes(compactKey(title));
+}
+
+function displaySummary(review: ReviewWithMedia, title: string): string | null {
+  const rawSummary = review.summary_th?.trim() ?? "";
+  if (rawSummary && isUsableSummary(rawSummary, title)) return rawSummary;
+
+  const raw = review.post_text.trim();
   const titleKey = compactKey(title);
   const rawKey = compactKey(raw);
   const brand = review.phone_brand ?? null;
   const model = review.phone_model ?? null;
   const cleanedRaw = cleanReviewTextForSummary(raw, brand, model);
 
-  if (!raw) return "ตัวอย่างภาพจากงานจริง";
-  if (rawKey.includes(titleKey) || raw.startsWith("รีวิว")) {
-    return buildReviewSummary(review.post_text, brand, model) ?? "ตัวอย่างภาพจากงานจริง";
-  }
-  if (!cleanedRaw || compactKey(cleanedRaw).includes(titleKey)) {
-    return buildReviewSummary(review.post_text, brand, model) ?? "ตัวอย่างภาพจากงานจริง";
-  }
-  return cleanedRaw.length > 45 ? cleanedRaw.slice(0, 45).trim() : cleanedRaw;
+  if (!raw || rawKey.includes(titleKey) || raw.startsWith("รีวิว")) return null;
+  if (!cleanedRaw || compactKey(cleanedRaw).includes(titleKey)) return null;
+  return cleanedRaw;
 }
 
 function displayUsername(review: ReviewWithMedia): string {
@@ -66,7 +70,7 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
     <article className="group relative z-0 flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/90 shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-t-card bg-surface-container sm:h-80 sm:aspect-auto">
         <div className="h-full w-full transition-transform duration-500 group-hover:scale-105">
-          <ReviewImage src={cover?.thumbnail_url ?? cover?.media_url ?? null} alt={summary} />
+          <ReviewImage src={cover?.thumbnail_url ?? cover?.media_url ?? null} alt={summary ?? title} />
         </div>
 
         <div className="absolute left-2 top-2 sm:left-2.5 sm:top-2.5">
@@ -114,7 +118,9 @@ export function ReviewCard({ review }: { review: ReviewWithMedia }) {
           ))}
         </p>
 
-        <p className="line-clamp-2 text-xs leading-5 text-text sm:text-sm sm:leading-6">{summary}</p>
+        {summary && (
+          <p className="line-clamp-2 whitespace-normal break-words text-xs leading-5 tracking-normal text-text [word-spacing:normal] sm:text-sm sm:leading-6">{summary}</p>
+        )}
 
         <div className="mt-auto space-y-2 border-t border-white/60 pt-2 sm:space-y-3 sm:pt-3">
           <div className="flex min-w-0 items-center gap-2">
