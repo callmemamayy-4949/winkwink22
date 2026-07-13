@@ -160,7 +160,7 @@ function matchesFilters(review: ReviewWithMedia, filters: ReviewFilters): boolea
   return true;
 }
 
-function sortReviews(reviews: ReviewWithMedia[], sort: SortOption = "newest") {
+function sortReviews(reviews: ReviewWithMedia[], sort: SortOption = "likes") {
   const sorted = [...reviews];
   // posted_at can be null (e.g. manual-added reviews). Treat null as "no date":
   // it sorts to the end in every date ordering rather than crashing.

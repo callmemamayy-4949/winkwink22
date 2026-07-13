@@ -1,12 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { MultiSelectDropdown } from "@/components/reviews/MultiSelectDropdown";
 import type { FilterFacets } from "@/lib/data/reviews";
 import { filtersToSearchString } from "@/lib/utils/query";
 import {
   LENS_LABELS_TH,
-  PLATFORM_LABELS,
   SORT_LABELS_TH,
   SOURCE_LABELS_TH,
   type ReviewFilters,
@@ -14,10 +14,12 @@ import {
 } from "@/types/review";
 
 const SORT_OPTIONS: SortOption[] = [
+  "likes",
   "newest",
   "oldest",
-  "likes",
 ];
+
+const FILTER_KEYS = ["brand", "model", "lens", "place", "quality", "hashtag", "year", "source"] as const;
 
 export function ReviewsControls({
   facets,
@@ -30,9 +32,10 @@ export function ReviewsControls({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   function navigate(next: ReviewFilters) {
-    const qs = filtersToSearchString(next);
+    const qs = filtersToSearchString({ ...next, sort: next.sort ?? "likes" });
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
@@ -41,7 +44,7 @@ export function ReviewsControls({
   }
 
   const activeChips: { key: keyof ReviewFilters; value: string; label: string }[] = [];
-  (["brand", "model", "lens", "place", "quality", "hashtag", "year", "source", "platform"] as const).forEach(
+  FILTER_KEYS.forEach(
     (key) => {
       const values = filters[key] as string[] | undefined;
       values?.forEach((v) => {
@@ -50,7 +53,6 @@ export function ReviewsControls({
           place: facets.places.find((p) => p.slug === v)?.label ?? v,
           lens: LENS_LABELS_TH[v as keyof typeof LENS_LABELS_TH] ?? v,
           source: SOURCE_LABELS_TH[v as keyof typeof SOURCE_LABELS_TH] ?? v,
-          platform: PLATFORM_LABELS[v as keyof typeof PLATFORM_LABELS] ?? v,
           hashtag: `#${v}`,
         };
         activeChips.push({ key, value: v, label: labelMap[key] ?? v });
@@ -64,76 +66,135 @@ export function ReviewsControls({
   }
 
   const hasAnyFilter = activeChips.length > 0 || !!filters.q;
+  const activeSort = filters.sort ?? "likes";
+  const filterControls = (
+    <>
+      {!lockModel && (
+        <MultiSelectDropdown
+          label="รุ่นมือถือ"
+          options={facets.models.map((m) => ({ value: m.slug, label: m.label }))}
+          selected={filters.model ?? []}
+          onChange={(v) => updateFilter("model", v)}
+        />
+      )}
+      <MultiSelectDropdown
+        label="แบรนด์"
+        options={facets.brands.map((b) => ({ value: b, label: b }))}
+        selected={filters.brand ?? []}
+        onChange={(v) => updateFilter("brand", v)}
+      />
+      <MultiSelectDropdown
+        label="เลนส์"
+        options={Object.entries(LENS_LABELS_TH).map(([value, label]) => ({ value, label }))}
+        selected={filters.lens ?? []}
+        onChange={(v) => updateFilter("lens", v as ReviewFilters["lens"])}
+        searchable={false}
+      />
+      <MultiSelectDropdown
+        label="สถานที่"
+        options={facets.places.map((p) => ({ value: p.slug, label: p.label }))}
+        selected={filters.place ?? []}
+        onChange={(v) => updateFilter("place", v)}
+      />
+      <MultiSelectDropdown
+        label="คุณภาพวิดีโอ"
+        options={facets.qualities.map((q) => ({ value: q, label: q }))}
+        selected={filters.quality ?? []}
+        onChange={(v) => updateFilter("quality", v)}
+        searchable={false}
+      />
+      <MultiSelectDropdown
+        label="แฮชแท็ก"
+        options={facets.hashtags.map((h) => ({ value: h, label: `#${h}` }))}
+        selected={filters.hashtag ?? []}
+        onChange={(v) => updateFilter("hashtag", v)}
+      />
+      <MultiSelectDropdown
+        label="ปี"
+        options={facets.years.map((y) => ({ value: String(y), label: String(y) }))}
+        selected={filters.year ?? []}
+        onChange={(v) => updateFilter("year", v)}
+        searchable={false}
+      />
+      <MultiSelectDropdown
+        label="ประเภทรีวิว"
+        options={Object.entries(SOURCE_LABELS_TH)
+          .filter(([value]) => value !== "unknown")
+          .map(([value, label]) => ({ value, label }))}
+        selected={filters.source ?? []}
+        onChange={(v) => updateFilter("source", v as ReviewFilters["source"])}
+        searchable={false}
+      />
+    </>
+  );
 
   return (
-    <div className="rounded-card border border-white/60 bg-white/70 p-4 shadow-card backdrop-blur-xl sm:p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        {!lockModel && (
-          <MultiSelectDropdown
-            label="รุ่นมือถือ"
-            options={facets.models.map((m) => ({ value: m.slug, label: m.label }))}
-            selected={filters.model ?? []}
-            onChange={(v) => updateFilter("model", v)}
-          />
-        )}
-        <MultiSelectDropdown
-          label="แบรนด์"
-          options={facets.brands.map((b) => ({ value: b, label: b }))}
-          selected={filters.brand ?? []}
-          onChange={(v) => updateFilter("brand", v)}
-        />
-        <MultiSelectDropdown
-          label="เลนส์"
-          options={Object.entries(LENS_LABELS_TH).map(([value, label]) => ({ value, label }))}
-          selected={filters.lens ?? []}
-          onChange={(v) => updateFilter("lens", v as ReviewFilters["lens"])}
-          searchable={false}
-        />
-        <MultiSelectDropdown
-          label="สถานที่"
-          options={facets.places.map((p) => ({ value: p.slug, label: p.label }))}
-          selected={filters.place ?? []}
-          onChange={(v) => updateFilter("place", v)}
-        />
-        <MultiSelectDropdown
-          label="คุณภาพวิดีโอ"
-          options={facets.qualities.map((q) => ({ value: q, label: q }))}
-          selected={filters.quality ?? []}
-          onChange={(v) => updateFilter("quality", v)}
-          searchable={false}
-        />
-        <MultiSelectDropdown
-          label="แฮชแท็ก"
-          options={facets.hashtags.map((h) => ({ value: h, label: `#${h}` }))}
-          selected={filters.hashtag ?? []}
-          onChange={(v) => updateFilter("hashtag", v)}
-        />
-        <MultiSelectDropdown
-          label="ปี"
-          options={facets.years.map((y) => ({ value: String(y), label: String(y) }))}
-          selected={filters.year ?? []}
-          onChange={(v) => updateFilter("year", v)}
-          searchable={false}
-        />
-        <MultiSelectDropdown
-          label="ประเภทรีวิว"
-          options={Object.entries(SOURCE_LABELS_TH)
-            .filter(([value]) => value !== "unknown")
-            .map(([value, label]) => ({ value, label }))}
-          selected={filters.source ?? []}
-          onChange={(v) => updateFilter("source", v as ReviewFilters["source"])}
-          searchable={false}
-        />
-        <MultiSelectDropdown
-          label="Platform"
-          options={Object.entries(PLATFORM_LABELS).map(([value, label]) => ({ value, label }))}
-          selected={filters.platform ?? []}
-          onChange={(v) => updateFilter("platform", v as ReviewFilters["platform"])}
-          searchable={false}
-        />
+    <>
+      <div className="flex items-center justify-between gap-3 sm:hidden">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="inline-flex min-h-12 touch-manipulation items-center gap-2 rounded-2xl border border-primary/20 bg-white px-4 py-2 text-sm font-bold text-text-strong shadow-card active:scale-95"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-primary" aria-hidden>
+            <path d="M3 5.5A1.5 1.5 0 0 1 4.5 4h15a1.5 1.5 0 0 1 1.2 2.4L15 14v4.3a1 1 0 0 1-.55.9l-4 2A1 1 0 0 1 9 20.3V14L3.3 6.4A1.5 1.5 0 0 1 3 5.5Z" />
+          </svg>
+          ตัวกรอง
+          {activeChips.length > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-on-primary">{activeChips.length}</span>
+          )}
+        </button>
+        <label className="relative block min-w-36">
+          <span className="sr-only">จัดเรียงตาม</span>
+          <select
+            value={activeSort}
+            onChange={(e) => updateFilter("sort", e.target.value as SortOption)}
+            className="min-h-12 w-full appearance-none rounded-2xl border border-outline/20 bg-white py-2 pl-4 pr-10 text-sm font-bold text-text-strong shadow-card outline-none focus:ring-2 focus:ring-primary/25"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option} value={option}>{SORT_LABELS_TH[option]}</option>
+            ))}
+          </select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-label" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+          </svg>
+        </label>
       </div>
 
-      {hasAnyFilter && (
+      {filtersOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/35 sm:hidden" onClick={() => setFiltersOpen(false)}>
+          <div
+            className="max-h-[82vh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-4 shadow-card-hover"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-display text-lg font-bold text-text-strong">ตัวกรอง</p>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="min-h-11 rounded-full px-4 text-sm font-semibold text-primary hover:bg-primary-container/60"
+              >
+                ปิด
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
+            {hasAnyFilter && (
+              <button
+                type="button"
+                onClick={() => navigate({ sort: filters.sort })}
+                className="mt-4 min-h-11 w-full rounded-full bg-primary-container px-4 py-2 text-sm font-bold text-primary"
+              >
+                ล้างตัวกรองทั้งหมด
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="hidden rounded-card border border-white/60 bg-white/70 p-4 shadow-card backdrop-blur-xl sm:block sm:p-6">
+        <div className="flex flex-wrap items-center gap-2">{filterControls}</div>
+
+        {hasAnyFilter && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-outline/15 pt-3">
           {filters.q && (
             <button
@@ -164,12 +225,12 @@ export function ReviewsControls({
             ล้างตัวกรองทั้งหมด
           </button>
         </div>
-      )}
+        )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/50 pt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/50 pt-4">
         <span className="mr-1 text-sm text-label">จัดเรียงตาม</span>
         {SORT_OPTIONS.map((option) => {
-          const active = (filters.sort ?? "newest") === option;
+          const active = activeSort === option;
           return (
             <button
               key={option}
@@ -185,7 +246,8 @@ export function ReviewsControls({
             </button>
           );
         })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

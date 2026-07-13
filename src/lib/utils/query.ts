@@ -9,7 +9,6 @@ const ARRAY_KEYS = [
   "hashtag",
   "year",
   "source",
-  "platform",
 ] as const;
 
 type SearchParamsInput = Record<string, string | string[] | undefined>;
@@ -28,7 +27,7 @@ function parseSort(value: string | string[] | undefined): SortOption | undefined
   const raw = Array.isArray(value) ? value[0] : value;
   if (raw === "newest" || raw === "oldest" || raw === "likes") return raw;
   if (raw === "most_likes") return "likes";
-  return undefined;
+  return "likes";
 }
 
 /** Parses a Next.js `searchParams` object into typed, structured filters. */
@@ -43,8 +42,7 @@ export function parseReviewFilters(params: SearchParamsInput): ReviewFilters {
     if (values) (filters as Record<string, string[]>)[key] = values;
   }
 
-  const sort = parseSort(params.sort);
-  if (sort) filters.sort = sort;
+  filters.sort = parseSort(params.sort);
 
   return filters;
 }
@@ -58,7 +56,7 @@ export function filtersToSearchString(filters: ReviewFilters): string {
     const values = filters[key];
     if (values?.length) search.set(key, values.join(","));
   }
-  if (filters.sort && filters.sort !== "newest") search.set("sort", filters.sort);
+  if (filters.sort) search.set("sort", filters.sort);
 
   return search.toString();
 }
